@@ -274,32 +274,36 @@ function calculate() {
     const isLegacyWFO = LEGACY_WFO.includes(priceBook);
     const excludeSeparation = isLegacyWFO || separationOverride === 'exclude';
 
-    // FX rates: fx_monthly_rates stores 1 PHP = X foreign
-    // e.g. fxRow.php = 0.026 means 1 PHP = 0.026 AUD
-    //      fxRow.usd = 0.017 means 1 PHP = 0.017 USD
-    //      fxRow.gbp = 0.013 means 1 PHP = 0.013 GBP
-    const phpToAud = parseFloat(fxRow.php) || 0.026;  // 1 PHP = X AUD
-    const audToPhp = 1 / phpToAud;                     // 1 AUD = X PHP
+    // FX rates: fx_monthly_rates column "php" = how many PHP per 1 AUD
+    // e.g. fxRow.php = 41.07 means 1 AUD = 41.07 PHP (so 1 PHP = 1/41.07 AUD)
+    //      fxRow.usd = 0.65  means 1 PHP = 0.65 USD?? NO — need to verify other columns
+    // For the "php" column specifically: it's PHP per 1 AUD.
+    // For other currency columns (usd, gbp etc): these are also "per 1 unit of that currency"
+    //   e.g. fxRow.usd = 58.91 means 1 USD = 58.91 PHP
+    // So to convert PHP → foreign: divide by fxVal
+    // To convert foreign → PHP: multiply by fxVal
+    const audToPhp = parseFloat(fxRow.php) || 41;   // 1 AUD = X PHP
+    const phpToAud = 1 / audToPhp;                    // 1 PHP = X AUD
 
     function phpToCurr(phpAmt) {
-        if (currency === 'AUD') return phpAmt * phpToAud;
+        if (currency === 'AUD') return phpAmt / audToPhp;
         const fxVal = parseFloat(fxRow[currency.toLowerCase()]) || 1;
-        // fxVal = 1 PHP = X foreign, so phpAmt * fxVal = foreign amount
-        return phpAmt * fxVal;
+        // fxVal = how many PHP per 1 foreign unit, so foreign = PHP / fxVal
+        return phpAmt / fxVal;
     }
     function audToCurr(audAmt) {
         if (currency === 'AUD') return audAmt;
         const fxVal = parseFloat(fxRow[currency.toLowerCase()]) || 1;
-        // AUD -> PHP -> foreign: audAmt / phpToAud * fxVal = audAmt * audToPhp * fxVal
-        return audAmt * audToPhp * fxVal;
+        // AUD → PHP → foreign: (audAmt × audToPhp) / fxVal
+        return (audAmt * audToPhp) / fxVal;
     }
 
-    // Night meals: stored per currency
+    // Night meals: stored per currency (e.g. AUD price from night_meals table)
     const nightMealsCurrencyVal = getNightMealPrice(mealId, currency);
-    // Convert to PHP: foreign amount / (1 PHP = X foreign) = PHP
+    // Convert to PHP: foreign amount × fxVal (PHP per 1 foreign unit) = PHP
     const nightMealsPHP = currency === 'AUD'
-        ? nightMealsCurrencyVal / phpToAud
-        : nightMealsCurrencyVal / (parseFloat(fxRow[currency.toLowerCase()]) || 1);
+        ? nightMealsCurrencyVal * audToPhp
+        : nightMealsCurrencyVal * (parseFloat(fxRow[currency.toLowerCase()]) || 1);
 
     function calcForSalary(baseSalary) {
         const hourlyBase = (baseSalary * 12) / 260 / 8;
@@ -477,8 +481,9 @@ function calculate() {
         sel('resultFXDesc').textContent = `1 AUD = ${audToPhp.toFixed(4)} PHP`;
     } else {
         const fxVal = parseFloat(fxRow[currency.toLowerCase()]) || 1;
-        sel('resultFXRate').textContent = `1 PHP = ${fxVal.toFixed(6)} ${currency}`;
-        sel('resultFXDesc').textContent = `1 AUD = ${audToPhp.toFixed(4)} PHP`;
+        // fxVal = PHP per 1 foreign unit, so 1 PHP = 1/fxVal foreign
+        sel('resultFXRate').textContent = `1 PHP = ${(1/fxVal).toFixed(6)} ${currency}`;
+        sel('resultFXDesc').textContent = `1 ${currency} = ${fxVal.toFixed(4)} PHP`;
     }
     sel('resultFXDate').textContent = fxRow.month_name || '';
     sel('benefitsCurrencyHeader').textContent = currency;
