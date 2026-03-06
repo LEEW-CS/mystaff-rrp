@@ -1,4 +1,18 @@
 // =====================================================
+// BUILD VERSION
+// =====================================================
+const APP_VERSION = 'v13 r31 modular';
+const APP_BUILD   = '2026-03-06 18:00';
+
+(function setVersionStamps() {
+    const stamp = `${APP_VERSION} · build ${APP_BUILD}`;
+    const loginEl = document.getElementById('loginVersionStamp');
+    if (loginEl) loginEl.textContent = stamp;
+    const sidebarEl = document.getElementById('sidebarVersionStamp');
+    if (sidebarEl) sidebarEl.textContent = stamp;
+})();
+
+// =====================================================
 // APP INITIALIZATION
 // =====================================================
 function initializeApp() {
