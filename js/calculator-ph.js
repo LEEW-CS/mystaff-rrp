@@ -155,7 +155,8 @@ async function loadCalcBenefits() {
             .order('category')
             .order('sort_order');
         if (error) throw error;
-        calcBenefitsData = data || [];
+        // PH calc: only PH rows (market='PH' or legacy rows with no market)
+        calcBenefitsData = (data || []).filter(r => !r.market || r.market === 'PH');
     } catch(e) { console.error('Benefits load error:', e); }
 }
 
