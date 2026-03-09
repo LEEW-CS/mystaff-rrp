@@ -1416,7 +1416,24 @@
                     <option value="Admin">Admin</option>
                 </select>
             </div>
-            <div class="modal-footer">
+            <div style="border-top:1px solid var(--border);margin:0.75rem 0;padding-top:0.25rem;">
+                <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.75rem;">Proposal Rep Details <span style="font-weight:400;text-transform:none;letter-spacing:0;">(used in generated proposals)</span></div>
+            </div>
+            <div class="form-group">
+                <label for="newUserJobTitle">Job Title</label>
+                <input type="text" id="newUserJobTitle" placeholder="e.g. Account Executive">
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="newUserPhone">Phone</label>
+                    <input type="text" id="newUserPhone" placeholder="+61 4xx xxx xxx">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="newUserEmailAddress">Email Address (public)</label>
+                    <input type="text" id="newUserEmailAddress" placeholder="john@cloudstaff.com">
+                </div>
+            </div>
+            <div class="modal-footer" style="margin-top:1rem;">
                 <button class="btn btn-secondary" onclick="hideModal('addUserModal')">Cancel</button>
                 <button class="btn btn-primary" onclick="addUser()">Add User</button>
             </div>
@@ -2075,7 +2092,24 @@
                     <option value="Admin">Admin</option>
                 </select>
             </div>
-            <div class="modal-footer">
+            <div style="border-top:1px solid var(--border);margin:0.75rem 0;padding-top:0.25rem;">
+                <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.75rem;">Proposal Rep Details <span style="font-weight:400;text-transform:none;letter-spacing:0;">(used in generated proposals)</span></div>
+            </div>
+            <div class="form-group">
+                <label for="editUserJobTitle">Job Title</label>
+                <input type="text" id="editUserJobTitle" placeholder="e.g. Account Executive">
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="editUserPhone">Phone</label>
+                    <input type="text" id="editUserPhone" placeholder="+61 4xx xxx xxx">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="editUserEmailAddress">Email Address (public)</label>
+                    <input type="text" id="editUserEmailAddress" placeholder="john@cloudstaff.com">
+                </div>
+            </div>
+            <div class="modal-footer" style="margin-top:1rem;">
                 <button class="btn btn-secondary" onclick="hideModal('editUserModal')">Cancel</button>
                 <button class="btn btn-primary" onclick="saveUser()">Save Changes</button>
             </div>
@@ -2234,9 +2268,61 @@
     </div>
 
 
+    <!-- Proposal Generator Modal -->
+    <div class="modal-overlay" id="proposalModal">
+        <div class="modal" style="max-width:520px;">
+            <div class="modal-header">
+                <h2>📄 Generate Proposal</h2>
+                <button class="modal-close" onclick="hideProposalModal()">&times;</button>
+            </div>
+            <input type="hidden" id="proposalQuoteId">
+
+            <!-- Quote summary (populated by JS) -->
+            <div id="proposalQuoteSummary" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.8125rem;">
+                <div style="color:var(--text-muted);">Loading quote details…</div>
+            </div>
+
+            <!-- Client first name -->
+            <div class="form-group">
+                <label for="proposalClientFirstName">Client First Name <span style="color:#ef4444;">*</span></label>
+                <input type="text" id="proposalClientFirstName" placeholder="e.g. Sarah">
+            </div>
+
+            <!-- Client company -->
+            <div class="form-group">
+                <label for="proposalClientCompany">Client Company Name <span style="color:#ef4444;">*</span></label>
+                <input type="text" id="proposalClientCompany" placeholder="e.g. Acme Pty Ltd">
+            </div>
+
+            <!-- Client logo upload -->
+            <div class="form-group">
+                <label>Client Logo <span style="color:var(--text-muted);font-weight:400;">(optional — PNG or JPG, ideally transparent bg)</span></label>
+                <input type="file" id="proposalLogoInput" accept="image/png,image/jpeg,image/svg+xml"
+                    onchange="handleProposalLogoUpload(this)"
+                    style="display:block;width:100%;font-size:0.875rem;padding:0.5rem 0;cursor:pointer;">
+                <div id="proposalLogoPreview" style="display:none;margin-top:0.5rem;">
+                    <img id="proposalLogoImg" src="" alt="Logo preview"
+                        style="max-height:60px;max-width:200px;border:1px solid var(--border);border-radius:6px;padding:4px;background:#fff;">
+                    <button onclick="clearProposalLogo()" style="margin-left:0.5rem;font-size:0.75rem;color:#ef4444;background:none;border:none;cursor:pointer;">✕ Remove</button>
+                </div>
+            </div>
+
+            <div id="proposalError" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:0.6rem 0.875rem;font-size:0.8125rem;margin-bottom:0.5rem;"></div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideProposalModal()">Cancel</button>
+                <button class="btn btn-primary" id="generateProposalBtn" onclick="generateProposal()">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="margin-right:4px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Download Proposal (.pptx)
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 
     <!-- App Modules (load order matters) -->
     <script src="js/config.js"></script>
@@ -2255,6 +2341,7 @@
     <script src="js/admin-fx.js"></script>
     <script src="js/admin-hmo.js"></script>
     <script src="js/admin-night-meals.js"></script>
+    <script src="js/proposal-generator.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
