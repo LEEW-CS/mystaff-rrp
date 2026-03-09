@@ -48,6 +48,7 @@ function renderQuotesTable(quotes) {
             <td style="font-size:0.75rem;color:var(--text-muted);">${dateStr}</td>
             <td class="actions">
                 <button class="btn btn-secondary btn-sm" onclick="${loadFn}(${JSON.stringify(q).replace(/"/g,'&quot;')})">${mkt === 'CO' ? 'Load CO' : 'Load'}</button>
+                <button class="btn btn-sm" style="background:#1B8EF2;color:#fff;" onclick="showProposalModal(${q.id})">📄 Proposal</button>
                 ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteQuote(${q.id})">Delete</button>` : ''}
             </td>
         </tr>`;

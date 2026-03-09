@@ -26,7 +26,7 @@ async function login() {
         // Query Supabase for user
         const { data, error } = await supabaseClient
             .from('users')
-            .select('*')
+            .select('id, name, email, role, job_title, phone, email_address')
             .eq('email', email)
             .eq('password_hash', hashedPassword)
             .single();

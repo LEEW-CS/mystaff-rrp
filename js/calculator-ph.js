@@ -898,6 +898,10 @@ async function saveQuote() {
         hardware_id: parseInt(document.getElementById('mpcHardware').value) || null,
         night_meal_id: parseInt(document.getElementById('nightMealsProduct').value) || null,
         total_monthly: document.getElementById('resultTotalMonthly').textContent,
+        edc_amount:      parseFloat(document.getElementById('resultEDC').textContent.replace(/[^0-9.-]/g,'')) || null,
+        mpc_amount:      parseFloat(document.getElementById('resultMPC').textContent.replace(/[^0-9.-]/g,'')) || null,
+        mpc_name:        (() => { const s = document.getElementById('mpcHardware'); return s && s.selectedIndex >= 0 ? s.options[s.selectedIndex].text : null; })(),
+        mgmt_fee_amount: parseFloat(document.getElementById('resultCSFee').textContent.replace(/[^0-9.-]/g,'')) || null,
         created_by: currentUser ? (currentUser.name || currentUser.email || 'Unknown') : 'Unknown',
     };
 

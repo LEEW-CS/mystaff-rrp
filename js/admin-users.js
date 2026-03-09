@@ -41,6 +41,9 @@ function showAddUserModal() {
     document.getElementById('newUserEmail').value = '';
     document.getElementById('newUserPassword').value = '';
     document.getElementById('newUserRole').value = 'Sales';
+    document.getElementById('newUserJobTitle').value = '';
+    document.getElementById('newUserPhone').value = '';
+    document.getElementById('newUserEmailAddress').value = '';
     document.getElementById('addUserModal').classList.add('active');
 }
 
@@ -49,6 +52,9 @@ async function addUser() {
     const email = document.getElementById('newUserEmail').value.trim();
     const password = document.getElementById('newUserPassword').value;
     const role = document.getElementById('newUserRole').value;
+    const job_title = document.getElementById('newUserJobTitle').value.trim() || null;
+    const phone = document.getElementById('newUserPhone').value.trim() || null;
+    const email_address = document.getElementById('newUserEmailAddress').value.trim() || null;
     
     if (!email || !password) {
         alert('Email and password are required');
@@ -59,7 +65,7 @@ async function addUser() {
         const hashedPassword = await hashPassword(password);
         const { data, error } = await supabaseClient
             .from('users')
-            .insert([{ name, email, password_hash: hashedPassword, role }])
+            .insert([{ name, email, password_hash: hashedPassword, role, job_title, phone, email_address }])
             .select();
         
         if (error) throw error;
@@ -111,6 +117,9 @@ async function editUser(id) {
         document.getElementById('editUserEmail').value = data.email;
         document.getElementById('editUserPassword').value = '';
         document.getElementById('editUserRole').value = data.role;
+        document.getElementById('editUserJobTitle').value = data.job_title || '';
+        document.getElementById('editUserPhone').value = data.phone || '';
+        document.getElementById('editUserEmailAddress').value = data.email_address || '';
         document.getElementById('editUserModal').classList.add('active');
         
     } catch (error) {
@@ -125,6 +134,9 @@ async function saveUser() {
     const email = document.getElementById('editUserEmail').value.trim();
     const password = document.getElementById('editUserPassword').value;
     const role = document.getElementById('editUserRole').value;
+    const job_title = document.getElementById('editUserJobTitle').value.trim() || null;
+    const phone = document.getElementById('editUserPhone').value.trim() || null;
+    const email_address = document.getElementById('editUserEmailAddress').value.trim() || null;
     
     if (!email) {
         alert('Email is required');
@@ -132,7 +144,7 @@ async function saveUser() {
     }
     
     try {
-        const updateData = { name, email, role };
+        const updateData = { name, email, role, job_title, phone, email_address };
         if (password) {
             updateData.password_hash = await hashPassword(password);
         }
