@@ -100,21 +100,24 @@ function xmlEsc(s) {
 }
 
 // Replaces <a:t>EXACT</a:t> → <a:t>NEW</a:t>  (all occurrences, exact string match)
+// CRITICAL: uses function replacer — prevents $ in values (e.g. 'A$59.50')
+// being misread as regex backreferences ($1, $3...) which corrupts the XML output.
 function rt(xml, exact, replacement) {
-    // Escape for use in regex, but also handle &amp; encoded versions
-    const esc = exact.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const esc  = exact.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const safe = xmlEsc(replacement);
     return xml.replace(new RegExp(`(<a:t[^>]*>)${esc}(</a:t>)`, 'g'),
-        `$1${xmlEsc(replacement)}$2`);
+        (match, p1, p2) => p1 + safe + p2);
 }
 
 // Replaces only the LAST occurrence
 function rtLast(xml, exact, replacement) {
-    const esc = exact.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re  = new RegExp(`(<a:t[^>]*>)${esc}(</a:t>)`, 'g');
+    const esc  = exact.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const safe = xmlEsc(replacement);
+    const re   = new RegExp(`(<a:t[^>]*>)${esc}(</a:t>)`, 'g');
     let m, last;
     while ((m = re.exec(xml)) !== null) last = m;
     if (!last) return xml;
-    return xml.slice(0, last.index) + last[1] + xmlEsc(replacement) + last[2] + xml.slice(last.index + last[0].length);
+    return xml.slice(0, last.index) + last[1] + safe + last[2] + xml.slice(last.index + last[0].length);
 }
 
 // ── Today's date (e.g. "10 March 2026") ──────────────
