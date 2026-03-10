@@ -702,6 +702,7 @@ function showRoleDropdown(roles) {
 function selectRole(role) {
     document.getElementById('roleSearchInput').value = role.job_title;
     document.getElementById('selectedRoleId').value = role.id;
+    document.getElementById('selectedRoleYears').value = role.years_experience || '';
     document.getElementById('roleDropdown').classList.remove('open');
     // Auto-fill salary with low/high
     document.getElementById('baseSalaryFrom').value = role.low_salary || role.median_salary;
@@ -721,6 +722,7 @@ function selectRole(role) {
 function clearSelectedRole() {
     document.getElementById('roleSearchInput').value = '';
     document.getElementById('selectedRoleId').value = '';
+    document.getElementById('selectedRoleYears').value = '';
     document.getElementById('selectedRolePill').classList.add('hidden');
     document.getElementById('salaryRangeHint').style.display = 'none';
     // Also reset browse dropdowns
@@ -897,12 +899,15 @@ async function saveQuote() {
         fx_month_id: parseInt(document.getElementById('exchangeRateDate').value) || null,
         hardware_id: parseInt(document.getElementById('mpcHardware').value) || null,
         night_meal_id: parseInt(document.getElementById('nightMealsProduct').value) || null,
-        total_monthly: document.getElementById('resultTotalMonthly').textContent,
         edc_amount:      parseFloat(document.getElementById('resultEDC').textContent.replace(/[^0-9.-]/g,'')) || null,
+        edc_amount_to:   (() => { const t = document.getElementById('resultEDC').textContent; const m = t.match(/[\d,]+\.?\d*/g); return m && m.length > 1 ? parseFloat(m[m.length-1].replace(/,/g,'')) : null; })(),
         mpc_amount:      parseFloat(document.getElementById('resultMPC').textContent.replace(/[^0-9.-]/g,'')) || null,
         mpc_name:        (() => { const s = document.getElementById('mpcHardware'); return s && s.selectedIndex >= 0 ? s.options[s.selectedIndex].text : null; })(),
         mgmt_fee_amount: parseFloat(document.getElementById('resultCSFee').textContent.replace(/[^0-9.-]/g,'')) || null,
         setup_fee_amount: parseFloat(document.getElementById('resultSetup').textContent.replace(/[^0-9.-]/g,'')) || null,
+        total_monthly: document.getElementById('resultTotalMonthly').textContent,
+        total_monthly_to: (() => { const t = document.getElementById('resultTotalMonthly').textContent; const m = t.match(/[\d,]+\.?\d*/g); return m && m.length > 1 ? parseFloat(m[m.length-1].replace(/,/g,'')) : null; })(),
+        years_experience: document.getElementById('selectedRoleYears').value || null,
         created_by: currentUser ? (currentUser.name || currentUser.email || 'Unknown') : 'Unknown',
     };
 

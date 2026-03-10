@@ -141,19 +141,55 @@ async function generateProposal() {
         const currency = quote.currency || 'AUD';
         const sym      = getCurrencySymbol(currency);
         const roleName = quote.role_name || 'Role';
-        const edcAmt   = quote.edc_amount        != null ? sym + fmtAmt(quote.edc_amount)        : '—';
+
+        // Derive role level (Junior / Mid-Level / Senior) from years_experience string
+        // e.g. "1-3 years" → Junior, "3-5 years" → Mid-Level, "5+ years" → Senior
+        function deriveLevel(yearsExp) {
+            if (!yearsExp) return '';
+            const s = yearsExp.toLowerCase();
+            if (s.includes('junior') || s.includes('entry') || /^[01][-–]/.test(s)) return 'Junior';
+            if (s.includes('senior') || s.includes('lead') || /[7-9]\+|10\+/.test(s)) return 'Senior';
+            if (s.includes('mid') || s.includes('intermediate')) return 'Mid-Level';
+            // Numeric range: low end < 3 → Junior, 3-6 → Mid-Level, 7+ → Senior
+            const nums = s.match(/\d+/g);
+            if (nums) {
+                const low = parseInt(nums[0]);
+                if (low <= 2) return 'Junior';
+                if (low <= 5) return 'Mid-Level';
+                return 'Senior';
+            }
+            return '';
+        }
+        const roleLevel = deriveLevel(quote.years_experience);
+
+        // Price bands — use from/to if both saved, otherwise single value
+        const edcFrom  = quote.edc_amount    != null ? quote.edc_amount    : null;
+        const edcTo    = quote.edc_amount_to != null ? quote.edc_amount_to : null;
+        const edcAmt   = edcFrom != null
+            ? (edcTo != null && edcTo !== edcFrom
+                ? sym + fmtAmt(edcFrom) + ' to ' + sym + fmtAmt(edcTo)
+                : sym + fmtAmt(edcFrom))
+            : '—';
+
+        const totRaw   = quote.total_monthly
+            ? parseFloat(String(quote.total_monthly).replace(/[^0-9.-]/g, ''))
+            : null;
+        const totTo    = quote.total_monthly_to != null ? quote.total_monthly_to : null;
+        const total    = totRaw != null
+            ? (totTo != null && totTo !== totRaw
+                ? sym + fmtAmt(totRaw) + ' to ' + sym + fmtAmt(totTo)
+                : sym + fmtAmt(totRaw))
+            : '—';
+
         const mpcAmt   = quote.mpc_amount        != null ? sym + fmtAmt(quote.mpc_amount)        : '—';
         const mpcName  = quote.mpc_name          || 'CS Power 7 Laptop';
         const mgmtFee  = quote.mgmt_fee_amount   != null ? sym + fmtAmt(quote.mgmt_fee_amount)   : '—';
         const setupFee = quote.setup_fee_amount  != null ? sym + fmtAmt(quote.setup_fee_amount)  : sym + '399.00';
-        const total    = quote.total_monthly
-            ? sym + fmtAmt(parseFloat(String(quote.total_monthly).replace(/[^0-9.-]/g, '')))
-            : '—';
 
         await buildProposalFromTemplate({
             clientFirst, clientCompany,
             repName, repTitle, repEmail, repPhone,
-            roleName, currency,
+            roleName, roleLevel, currency,
             edcAmt, mpcAmt, mpcName, mgmtFee, setupFee, total,
             quoteNumber: String(quote.quote_number || 'Draft'),
         });
@@ -291,8 +327,8 @@ async function buildProposalFromTemplate(d) {
         // Row 3 full-width span — role name
         xml = rt(xml, 'Front-end Developer', d.roleName);
 
-        // Row 4 col 1 — blank experience level
-        xml = rt(xml, 'Mid-level', '');
+        // Row 4 col 1 — role experience level (Junior / Mid-Level / Senior)
+        xml = rt(xml, 'Mid-level', d.roleLevel || '');
 
         // Row 4 col 2 — EDC
         xml = rt(xml, '$2,150 - $3,355', d.edcAmt);
