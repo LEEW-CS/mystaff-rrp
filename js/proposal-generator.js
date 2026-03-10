@@ -141,10 +141,11 @@ async function generateProposal() {
         const currency = quote.currency || 'AUD';
         const sym      = getCurrencySymbol(currency);
         const roleName = quote.role_name || 'Role';
-        const edcAmt   = quote.edc_amount      != null ? sym + fmtAmt(quote.edc_amount)      : '—';
-        const mpcAmt   = quote.mpc_amount      != null ? sym + fmtAmt(quote.mpc_amount)      : '—';
-        const mpcName  = quote.mpc_name        || 'CS Power 7 Laptop';
-        const mgmtFee  = quote.mgmt_fee_amount != null ? sym + fmtAmt(quote.mgmt_fee_amount) : '—';
+        const edcAmt   = quote.edc_amount        != null ? sym + fmtAmt(quote.edc_amount)        : '—';
+        const mpcAmt   = quote.mpc_amount        != null ? sym + fmtAmt(quote.mpc_amount)        : '—';
+        const mpcName  = quote.mpc_name          || 'CS Power 7 Laptop';
+        const mgmtFee  = quote.mgmt_fee_amount   != null ? sym + fmtAmt(quote.mgmt_fee_amount)   : '—';
+        const setupFee = quote.setup_fee_amount  != null ? sym + fmtAmt(quote.setup_fee_amount)  : sym + '399.00';
         const total    = quote.total_monthly
             ? sym + fmtAmt(parseFloat(String(quote.total_monthly).replace(/[^0-9.-]/g, '')))
             : '—';
@@ -153,7 +154,7 @@ async function generateProposal() {
             clientFirst, clientCompany,
             repName, repTitle, repEmail, repPhone,
             roleName, currency,
-            edcAmt, mpcAmt, mpcName, mgmtFee, total,
+            edcAmt, mpcAmt, mpcName, mgmtFee, setupFee, total,
             quoteNumber: String(quote.quote_number || 'Draft'),
         });
         hideProposalModal();
@@ -267,52 +268,64 @@ async function buildProposalFromTemplate(d) {
     // ── Slide 4: Pricing table ───────────────────────────
     // Key text nodes (many contain \xa0 non-breaking spaces):
     //   'Managed\xa0PC '          → keep (run 1 of mPC header)
-    //   '(CS Power 7 Laptop)'     → '({mpcName})'
-    //   'Monthly Total' + '(AUD)' → keep / replace currency
-    //   'Cloudstaff' + ' Proposal'→ keep as-is (title — DO NOT TOUCH)
-    //   'Front-end Developer'     → role name
-    //   'Mid-level'               → '' (single role, no level needed)
-    //   '$2,150 - $3,355'         → EDC
-    //   '$59.50' (first)          → mPC amount
-    //   '$770.00' (first)         → mgmt fee
-    //   '$0.00' (first)           → upgrades (leave as $0.00)
-    //   '$2,980 - $4,185'         → total
-    //   'Senior'                  → ''  (blank second tier)
-    //   '$3,355 - $4,835'         → ''
-    //   '$59.50' (second)         → ''
-    //   '$770.00' (second)        → ''
-    //   '$0.00' (second)          → ''
-    //   '$4,185 - $5,665'         → ''
+    // ── Slide 4: Pricing table ───────────────────────────
+    // Table structure (verified from template XML):
+    //   Row 1 (blue header): Role | EDC | Managed PC (name) | CS Mgmt Fee | Upgrades | Monthly Total (currency)
+    //   Row 2 (description): blank | Salary desc | Managed PC desc | Work From Home | blank | blank
+    //   Row 3 (full-width span): 'Front-end Developer' → role name
+    //   Row 4 (data):  'Mid-level' | '$2,150-$3,355' | '$59.50' | '$770.00' | '$0.00' | '$2,980-$4,185'
+    //
+    // Mappings:
+    //   Row 1 col 3:  '(CS Power 7 Laptop)' → '({mpcName})'
+    //   Row 1 col 6:  '(AUD)'               → '({currency})'
+    //   Row 3 span:   'Front-end Developer' → roleName
+    //   Row 4 col 1:  'Mid-level'           → '' (no experience level field)
+    //   Row 4 col 2:  '$2,150 - $3,355'     → edcAmt
+    //   Row 4 col 3:  '$59.50' (single run) → replaced with TWO paragraphs: mpcName + mpcAmt
+    //   Row 4 col 4:  '$770.00'             → mgmtFee
+    //   Row 4 col 5:  '$0.00'               → leave as-is (upgrades)
+    //   Row 4 col 6:  '$2,980 - $4,185'     → total
+    //
+    // Grey box (shape 206): '...setup fee\xa0$200 per seat' → '...setup fee {setupFee} per seat'
     await patch(zip, 'ppt/slides/slide4.xml', xml => {
-        // mPC column header (second run of that cell)
+        // Header row
         xml = rt(xml, '(CS Power 7 Laptop)', `(${d.mpcName})`);
-
-        // Currency in Monthly Total header
         xml = rt(xml, '(AUD)', `(${d.currency})`);
 
-        // Role name header row
+        // Row 3 full-width span — role name
         xml = rt(xml, 'Front-end Developer', d.roleName);
 
-        // Mid-level → blank
+        // Row 4 col 1 — blank experience level
         xml = rt(xml, 'Mid-level', '');
 
-        // Row 3 data — replace in order they appear in file
+        // Row 4 col 2 — EDC
         xml = rt(xml, '$2,150 - $3,355', d.edcAmt);
-        // $59.50 appears twice (rows 3 and 4) — replace both, then blank the second
-        // Do first pass: replace ALL $59.50 with mpcAmt
-        xml = rt(xml, '$59.50', d.mpcAmt);
+
+        // Row 4 col 3 — Managed PC: replace single-run '$59.50' txBody with two paragraphs
+        // (product name on line 1, price on line 2), preserving existing cell rPr style
+        const mpcRpr = '<a:rPr lang="en-US" sz="900" b="0" i="0" u="none" strike="noStrike" noProof="0"><a:solidFill><a:srgbClr val="202124"/></a:solidFill><a:effectLst/><a:latin typeface="Aptos"/></a:rPr>';
+        const mpcPpr = '<a:pPr lvl="0" algn="ctr"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buNone/></a:pPr>';
+        const newMpcTxBody =
+            '<p:txBody><a:bodyPr/><a:lstStyle/>' +
+            `<a:p>${mpcPpr}<a:r>${mpcRpr}<a:t>${xmlEsc(d.mpcName)}</a:t></a:r></a:p>` +
+            `<a:p>${mpcPpr}<a:r>${mpcRpr}<a:t>${xmlEsc(d.mpcAmt)}</a:t></a:r></a:p>` +
+            '</p:txBody>';
+        // Target the specific cell in row 4 col 3 — it contains '$59.50' in its only run
+        xml = xml.replace(
+            /(<a:tc>(?:(?!<\/a:tc>)[\s\S])*?)<p:txBody>(?:(?!<\/p:txBody>)[\s\S])*?\$59\.50(?:(?!<\/p:txBody>)[\s\S])*?<\/p:txBody>/,
+            (m, prefix) => prefix + newMpcTxBody
+        );
+
+        // Row 4 col 4 — management fee
         xml = rt(xml, '$770.00', d.mgmtFee);
-        // $0.00 appears twice — leave both as $0.00
+
+        // Row 4 col 5 — leave $0.00 (upgrades/additional)
+
+        // Row 4 col 6 — total monthly
         xml = rt(xml, '$2,980 - $4,185', d.total);
 
-        // Row 4 — blank the Senior tier
-        xml = rt(xml, 'Senior', '');
-        xml = rt(xml, '$3,355 - $4,835', '');
-        // $59.50 already replaced above for both rows — row 4 now shows d.mpcAmt
-        // Need to blank LAST occurrence of d.mpcAmt for row 4
-        xml = rtLast(xml, xmlEsc(d.mpcAmt), '');
-        xml = rtLast(xml, xmlEsc(d.mgmtFee), '');
-        xml = rt(xml, '$4,185 - $5,665', '');
+        // Grey box — One-Off Setup Costs: replace '$200' with actual setup fee
+        xml = rt(xml, ' setup fee\xa0$200 per seat', ` setup fee\xa0${d.setupFee} per seat`);
 
         return xml;
     });
