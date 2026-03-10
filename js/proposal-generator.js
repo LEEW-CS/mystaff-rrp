@@ -144,9 +144,18 @@ async function generateProposal() {
     if (errEl) errEl.style.display = 'none';
 
     const repName  = currentUser?.name  || currentUser?.email || '';
-    const repTitle = currentUser?.job_title || 'Business Development Manager';
+    const repTitle = currentUser?.job_title || '';
     const repEmail = currentUser?.email_address || currentUser?.email || '';
     const repPhone = currentUser?.phone || '';
+
+    // Debug: log what currentUser actually contains so we can verify fields are loaded
+    console.log('[Proposal] currentUser fields:', {
+        name:          currentUser?.name,
+        job_title:     currentUser?.job_title,
+        phone:         currentUser?.phone,
+        email:         currentUser?.email,
+        email_address: currentUser?.email_address,
+    });
 
     const currency = quote.currency || 'AUD';
     const sym      = getCurrencySymbol(currency);
