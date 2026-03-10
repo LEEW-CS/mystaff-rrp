@@ -195,20 +195,69 @@ async function buildProposalFromTemplate(d) {
     const zip = await JSZip.loadAsync(await resp.arrayBuffer());
 
     // ── Slide 1: Cover ──────────────────────────────────
-    // Text nodes (exact strings from source):
-    //   'March 9,'  +  ' 2026'   → today's date in first run, blank second run
-    //   'Sally Simmons'           → rep name
-    //   'Your Outsourcing Specialist' → rep title
-    //   '0429 782 463'            → rep phone
-    //   'sallys@cloudstaff.com'   → rep email
+    // Date: replace the two date runs in the subtitle shape.
+    // Rep details: target shape cNvPr id="165" (top-right text box) and replace its
+    // ENTIRE txBody — works regardless of what placeholder text the template has.
     await patch(zip, 'ppt/slides/slide1.xml', xml => {
-        const date = todayLong();
-        xml = rt(xml, 'March 9,',  date);
-        xml = rt(xml, ' 2026',     '');
-        xml = rt(xml, 'Sally Simmons',             d.repName  || '');
-        xml = rt(xml, 'Your Outsourcing Specialist', d.repTitle || '');
-        xml = rt(xml, '0429 782 463',              d.repPhone || '');
-        xml = rt(xml, 'sallys@cloudstaff.com',     d.repEmail || '');
+
+        // Date — target subtitle shape id="163" and replace its entire txBody.
+        // Handles both old template (two runs) and new template (single run).
+        // Preserves the original rPr (sz=2000) exactly.
+        xml = xml.replace(
+            /(<p:sp>(?:(?!<\/p:sp>)[\s\S])*?cNvPr id="163"[\s\S]*?)<p:txBody>[\s\S]*?<\/p:txBody>/,
+            (m, prefix) => prefix +
+                '<p:txBody>' +
+                '<a:bodyPr spcFirstLastPara="1" wrap="square" lIns="91425" tIns="91425" rIns="91425" bIns="91425" anchor="t" anchorCtr="0"><a:noAutofit/></a:bodyPr>' +
+                '<a:lstStyle/>' +
+                '<a:p><a:pPr marL="0" indent="0"/>' +
+                '<a:r><a:rPr lang="en" sz="2000" dirty="0"/><a:t>' + todayLong() + '</a:t></a:r>' +
+                '</a:p>' +
+                '</p:txBody>'
+        );
+
+        // Rep details — rebuild entire txBody of shape id="165"
+        // Preserves original formatting: Work Sans font, accent2 colour, sz=1300
+        const rPr    = '<a:rPr lang="en" sz="1300"><a:solidFill><a:schemeClr val="accent2"/></a:solidFill><a:latin typeface="Work Sans"/></a:rPr>';
+        const endRPr = '<a:endParaRPr lang="en" sz="1300"><a:solidFill><a:schemeClr val="accent2"/></a:solidFill><a:latin typeface="Work Sans"/></a:endParaRPr>';
+        const mkPara = t => `<a:p><a:r>${rPr}<a:t>${xmlEsc(t)}</a:t></a:r>${endRPr}</a:p>`;
+
+        const newTxBody =
+            '<p:txBody>' +
+            '<a:bodyPr spcFirstLastPara="1" wrap="square" lIns="91425" tIns="91425" rIns="91425" bIns="91425" anchor="t" anchorCtr="0"><a:spAutoFit/></a:bodyPr>' +
+            '<a:lstStyle/>' +
+            mkPara(d.repName  || '') +
+            mkPara(d.repTitle || '') +
+            mkPara(d.repPhone || '') +
+            mkPara(d.repEmail || '') +
+            `<a:p>${endRPr}</a:p>` +
+            '</p:txBody>';
+
+        // If shape 165 exists (old template), replace its txBody.
+        // If not (new template), insert a new text box at the same top-right position.
+        if (xml.includes('cNvPr id="165"')) {
+            xml = xml.replace(
+                /(<p:sp>(?:(?!<\/p:sp>)[\s\S])*?cNvPr id="165"[\s\S]*?)<p:txBody>[\s\S]*?<\/p:txBody>/,
+                (m, prefix) => prefix + newTxBody
+            );
+        } else {
+            // Insert new shape: top-right, x=6.72" y=0.29" w=3.28" h=1.30"
+            const newShape =
+                '<p:sp>' +
+                '<p:nvSpPr>' +
+                '<p:cNvPr id="9002" name="RepDetails"/>' +
+                '<p:cNvSpPr txBox="1"/>' +
+                '<p:nvPr/>' +
+                '</p:nvSpPr>' +
+                '<p:spPr>' +
+                '<a:xfrm><a:off x="6143390" y="266413"/><a:ext cx="3000000" cy="1184909"/></a:xfrm>' +
+                '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>' +
+                '<a:noFill/><a:ln><a:noFill/></a:ln>' +
+                '</p:spPr>' +
+                newTxBody +
+                '</p:sp>';
+            xml = xml.replace('</p:spTree>', newShape + '</p:spTree>');
+        }
+
         return xml;
     });
 
@@ -365,13 +414,31 @@ async function insertLogo(zip, logoBase64DataUrl) {
             zip.file(relsPath, rels);
         }
 
-        // Inject <p:pic> into slide1 spTree
-        // Center bottom: x=4.0" y=4.45" w=2.0" h=0.9" on 10"x5.625" slide
-        const EMU = 914400;
-        const lx  = 3657600;  // 4.0" — centered (slideW=9144000, logoW=1828800)
-        const ly  = 4069080;  // 4.45" — bottom strip
-        const lw  = 1828800;  // 2.0"
-        const lh  =  822960;  // 0.9"
+        // Calculate cx/cy from actual image pixel dimensions so the bounding box
+        // exactly matches the image's aspect ratio — this is the ONLY way to prevent
+        // PowerPoint from stretching/distorting the logo. Max width=2.5", max height=1.0".
+        const imgDims = await new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+            img.onerror = () => resolve({ w: 1, h: 1 });
+            img.src = logoBase64DataUrl;
+        });
+
+        const EMU    = 914400;
+        const maxW   = 2.5 * EMU;   // 2.5" max width
+        const maxH   = 1.0 * EMU;   // 1.0" max height
+        const aspect = imgDims.w / imgDims.h;
+        let lw, lh;
+        if (aspect >= maxW / maxH) {
+            lw = maxW;
+            lh = Math.round(maxW / aspect);
+        } else {
+            lh = maxH;
+            lw = Math.round(maxH * aspect);
+        }
+        // Centre horizontally in bottom strip (slide width = 9144000 EMU = 10")
+        const lx = Math.round((9144000 - lw) / 2);
+        const ly = Math.round(4.35 * EMU);   // 4.35" — bottom strip
 
         const picXml = `<p:pic xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
             `<p:nvPicPr><p:cNvPr id="9001" name="ClientLogo"/>` +
