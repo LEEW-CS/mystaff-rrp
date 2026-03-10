@@ -37,7 +37,6 @@ function showProposalModal(quoteId) {
 
     document.getElementById('proposalClientFirstName').value = '';
     document.getElementById('proposalClientCompany').value   = '';
-    clearProposalLogo();
     const errEl = document.getElementById('proposalError');
     if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
 
@@ -52,34 +51,6 @@ function hideProposalModal() {
 
 function esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ── Logo upload ───────────────────────────────────────
-
-let proposalLogoBase64 = null;
-
-function handleProposalLogoUpload(input) {
-    const file = input.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-        proposalLogoBase64 = e.target.result;
-        const img = document.getElementById('proposalLogoImg');
-        const prev = document.getElementById('proposalLogoPreview');
-        if (img)  img.src = proposalLogoBase64;
-        if (prev) prev.style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-}
-
-function clearProposalLogo() {
-    proposalLogoBase64 = null;
-    const img   = document.getElementById('proposalLogoImg');
-    const prev  = document.getElementById('proposalLogoPreview');
-    const input = document.getElementById('proposalLogoInput');
-    if (img)   img.src = '';
-    if (prev)  prev.style.display = 'none';
-    if (input) input.value = '';
 }
 
 // ── Helpers ───────────────────────────────────────────
@@ -143,42 +114,46 @@ async function generateProposal() {
     if (!clientCompany) { showErr("Please enter the client company name."); document.getElementById('proposalClientCompany').focus(); return; }
     if (errEl) errEl.style.display = 'none';
 
-    const repName  = currentUser?.name  || currentUser?.email || '';
-    const repTitle = currentUser?.job_title || '';
-    const repEmail = currentUser?.email_address || currentUser?.email || '';
-    const repPhone = currentUser?.phone || '';
-
-    // Debug: log what currentUser actually contains so we can verify fields are loaded
-    console.log('[Proposal] currentUser fields:', {
-        name:          currentUser?.name,
-        job_title:     currentUser?.job_title,
-        phone:         currentUser?.phone,
-        email:         currentUser?.email,
-        email_address: currentUser?.email_address,
-    });
-
-    const currency = quote.currency || 'AUD';
-    const sym      = getCurrencySymbol(currency);
-    const roleName = quote.role_name || 'Role';
-    const edcAmt   = quote.edc_amount      != null ? sym + fmtAmt(quote.edc_amount)      : '—';
-    const mpcAmt   = quote.mpc_amount      != null ? sym + fmtAmt(quote.mpc_amount)      : '—';
-    const mpcName  = quote.mpc_name        || 'CS Power 7 Laptop';
-    const mgmtFee  = quote.mgmt_fee_amount != null ? sym + fmtAmt(quote.mgmt_fee_amount) : '—';
-    const total    = quote.total_monthly
-        ? sym + fmtAmt(parseFloat(String(quote.total_monthly).replace(/[^0-9.-]/g, '')))
-        : '—';
-
     const btn = document.getElementById('generateProposalBtn');
     btn.disabled = true;
     btn.innerHTML = '⏳ Generating…';
 
     try {
+        // Fetch the logged-in user's full row directly from Supabase.
+        // Do NOT rely on currentUser — it may not include job_title/phone/email_address.
+        const userId = currentUser?.id;
+        let repName = '', repTitle = '', repEmail = '', repPhone = '';
+        if (userId) {
+            const { data: uRow, error: uErr } = await supabaseClient
+                .from('users')
+                .select('name, job_title, phone, email_address, email')
+                .eq('id', userId)
+                .single();
+            if (uErr) console.warn('[Proposal] user fetch error:', uErr.message);
+            if (uRow) {
+                repName  = uRow.name         || '';
+                repTitle = uRow.job_title     || '';
+                repPhone = uRow.phone         || '';
+                repEmail = uRow.email_address || uRow.email || '';
+            }
+        }
+
+        const currency = quote.currency || 'AUD';
+        const sym      = getCurrencySymbol(currency);
+        const roleName = quote.role_name || 'Role';
+        const edcAmt   = quote.edc_amount      != null ? sym + fmtAmt(quote.edc_amount)      : '—';
+        const mpcAmt   = quote.mpc_amount      != null ? sym + fmtAmt(quote.mpc_amount)      : '—';
+        const mpcName  = quote.mpc_name        || 'CS Power 7 Laptop';
+        const mgmtFee  = quote.mgmt_fee_amount != null ? sym + fmtAmt(quote.mgmt_fee_amount) : '—';
+        const total    = quote.total_monthly
+            ? sym + fmtAmt(parseFloat(String(quote.total_monthly).replace(/[^0-9.-]/g, '')))
+            : '—';
+
         await buildProposalFromTemplate({
             clientFirst, clientCompany,
             repName, repTitle, repEmail, repPhone,
             roleName, currency,
             edcAmt, mpcAmt, mpcName, mgmtFee, total,
-            logoBase64: proposalLogoBase64,
             quoteNumber: String(quote.quote_number || 'Draft'),
         });
         hideProposalModal();
@@ -190,7 +165,6 @@ async function generateProposal() {
         btn.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="margin-right:4px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>Download Proposal (.pptx)';
     }
 }
-
 // ── Template builder ──────────────────────────────────
 
 async function buildProposalFromTemplate(d) {
@@ -355,13 +329,6 @@ async function buildProposalFromTemplate(d) {
         return xml;
     });
 
-    // ── Optional: client logo on slide 1 ─────────────────
-    // Position: bottom-left, next to Cloudstaff logo
-    // Cloudstaff logo is roughly at x=0.3" y=4.6" — place client logo at x=1.8" y=4.55" 
-    if (d.logoBase64) {
-        await insertLogo(zip, d.logoBase64);
-    }
-
     // ── Download ──────────────────────────────────────────
     // Do NOT force compression — preserves original per-entry type (STORE for fonts etc).
     // Forcing DEFLATE here would try to re-deflate already-STORED binary font files → corruption.
@@ -384,90 +351,3 @@ async function patch(zip, path, fn) {
     zip.file(path, fn(await file.async('string')));
 }
 
-// ── Logo insertion ────────────────────────────────────
-// Client logo placed center-bottom of slide 1.
-// Slide 10" x 5.625". Logo: x=4.0" y=4.45" w=2.0" h=0.9"
-
-async function insertLogo(zip, logoBase64DataUrl) {
-    try {
-        const mimeMatch = logoBase64DataUrl.match(/data:(image\/([a-z+]+));base64,/);
-        if (!mimeMatch) return;
-        const mime = mimeMatch[1];
-        const ext  = { 'image/png':'png', 'image/jpeg':'jpg', 'image/jpg':'jpg', 'image/svg+xml':'svg' }[mime] || 'png';
-        const b64  = logoBase64DataUrl.split(',')[1];
-
-        // Binary to zip
-        const binary = atob(b64);
-        const bytes  = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const imgPath = `ppt/media/clientLogo.${ext}`;
-        zip.file(imgPath, bytes);
-
-        // [Content_Types].xml
-        const ctFile = zip.file('[Content_Types].xml');
-        if (ctFile) {
-            let ct = await ctFile.async('string');
-            const partName    = `/ppt/media/clientLogo.${ext}`;
-            const contentType = mime;
-            if (!ct.includes(partName)) {
-                ct = ct.replace('</Types>', `  <Override PartName="${partName}" ContentType="${contentType}"/>\n</Types>`);
-                zip.file('[Content_Types].xml', ct);
-            }
-        }
-
-        // Relationship
-        const relsPath = 'ppt/slides/_rels/slide1.xml.rels';
-        const relsFile = zip.file(relsPath);
-        let rels = relsFile
-            ? await relsFile.async('string')
-            : '<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
-        const rId = 'rId_clientLogo';
-        if (!rels.includes(rId)) {
-            rels = rels.replace('</Relationships>',
-                `  <Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/clientLogo.${ext}"/>\n</Relationships>`);
-            zip.file(relsPath, rels);
-        }
-
-        // Calculate cx/cy from actual image pixel dimensions so the bounding box
-        // exactly matches the image's aspect ratio — this is the ONLY way to prevent
-        // PowerPoint from stretching/distorting the logo. Max width=2.5", max height=1.0".
-        const imgDims = await new Promise(resolve => {
-            const img = new Image();
-            img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-            img.onerror = () => resolve({ w: 1, h: 1 });
-            img.src = logoBase64DataUrl;
-        });
-
-        const EMU    = 914400;
-        const maxW   = 2.5 * EMU;   // 2.5" max width
-        const maxH   = 1.0 * EMU;   // 1.0" max height
-        const aspect = imgDims.w / imgDims.h;
-        let lw, lh;
-        if (aspect >= maxW / maxH) {
-            lw = maxW;
-            lh = Math.round(maxW / aspect);
-        } else {
-            lh = maxH;
-            lw = Math.round(maxH * aspect);
-        }
-        // Centre horizontally in bottom strip (slide width = 9144000 EMU = 10")
-        const lx = Math.round((9144000 - lw) / 2);
-        const ly = Math.round(4.35 * EMU);   // 4.35" — bottom strip
-
-        const picXml = `<p:pic xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
-            `<p:nvPicPr><p:cNvPr id="9001" name="ClientLogo"/>` +
-            `<p:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>` +
-            `<p:blipFill><a:blip r:embed="${rId}"/><a:srcRect/></p:blipFill>` +
-            `<p:spPr><a:xfrm><a:off x="${lx}" y="${ly}"/><a:ext cx="${lw}" cy="${lh}"/></a:xfrm>` +
-            `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr></p:pic>`;
-
-        const slideFile = zip.file('ppt/slides/slide1.xml');
-        if (slideFile) {
-            let sxml = await slideFile.async('string');
-            sxml = sxml.replace('</p:spTree>', picXml + '</p:spTree>');
-            zip.file('ppt/slides/slide1.xml', sxml);
-        }
-    } catch (e) {
-        console.warn('Logo insertion failed (non-fatal):', e);
-    }
-}
