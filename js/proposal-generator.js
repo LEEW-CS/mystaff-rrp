@@ -266,9 +266,6 @@ async function buildProposalFromTemplate(d) {
     });
 
     // ── Slide 4: Pricing table ───────────────────────────
-    // Key text nodes (many contain \xa0 non-breaking spaces):
-    //   'Managed\xa0PC '          → keep (run 1 of mPC header)
-    // ── Slide 4: Pricing table ───────────────────────────
     // Table structure (verified from template XML):
     //   Row 1 (blue header): Role | EDC | Managed PC (name) | CS Mgmt Fee | Upgrades | Monthly Total (currency)
     //   Row 2 (description): blank | Salary desc | Managed PC desc | Work From Home | blank | blank
@@ -281,12 +278,11 @@ async function buildProposalFromTemplate(d) {
     //   Row 3 span:   'Front-end Developer' → roleName
     //   Row 4 col 1:  'Mid-level'           → '' (no experience level field)
     //   Row 4 col 2:  '$2,150 - $3,355'     → edcAmt
-    //   Row 4 col 3:  '$59.50' (single run) → replaced with TWO paragraphs: mpcName + mpcAmt
-    //   Row 4 col 4:  '$770.00'             → mgmtFee
+    //   Row 4 col 3:  '$59.50' txBody       → TWO paragraphs: mpcName + mpcAmt (a:txBody namespace!)
+    //   Row 4 col 4:  '$770.00'             → mgmtFee (guard: may be null on older quotes)
     //   Row 4 col 5:  '$0.00'               → leave as-is (upgrades)
     //   Row 4 col 6:  '$2,980 - $4,185'     → total
-    //
-    // Grey box (shape 206): '...setup fee\xa0$200 per seat' → '...setup fee {setupFee} per seat'
+    //   Grey box:     ' setup fee\u00a0$200 per seat' → ' setup fee\u00a0{setupFee} per seat'
     await patch(zip, 'ppt/slides/slide4.xml', xml => {
         // Header row
         xml = rt(xml, '(CS Power 7 Laptop)', `(${d.mpcName})`);
@@ -301,31 +297,31 @@ async function buildProposalFromTemplate(d) {
         // Row 4 col 2 — EDC
         xml = rt(xml, '$2,150 - $3,355', d.edcAmt);
 
-        // Row 4 col 3 — Managed PC: replace single-run '$59.50' txBody with two paragraphs
-        // (product name on line 1, price on line 2), preserving existing cell rPr style
+        // Row 4 col 3 — Managed PC: replace the a:txBody containing '$59.50' with two paragraphs.
+        // IMPORTANT: table cells use <a:txBody> NOT <p:txBody> — previous bug was wrong namespace.
         const mpcRpr = '<a:rPr lang="en-US" sz="900" b="0" i="0" u="none" strike="noStrike" noProof="0"><a:solidFill><a:srgbClr val="202124"/></a:solidFill><a:effectLst/><a:latin typeface="Aptos"/></a:rPr>';
         const mpcPpr = '<a:pPr lvl="0" algn="ctr"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buNone/></a:pPr>';
         const newMpcTxBody =
-            '<p:txBody><a:bodyPr/><a:lstStyle/>' +
+            '<a:txBody><a:bodyPr/><a:lstStyle/>' +
             `<a:p>${mpcPpr}<a:r>${mpcRpr}<a:t>${xmlEsc(d.mpcName)}</a:t></a:r></a:p>` +
             `<a:p>${mpcPpr}<a:r>${mpcRpr}<a:t>${xmlEsc(d.mpcAmt)}</a:t></a:r></a:p>` +
-            '</p:txBody>';
-        // Target the specific cell in row 4 col 3 — it contains '$59.50' in its only run
+            '</a:txBody>';
         xml = xml.replace(
-            /(<a:tc>(?:(?!<\/a:tc>)[\s\S])*?)<p:txBody>(?:(?!<\/p:txBody>)[\s\S])*?\$59\.50(?:(?!<\/p:txBody>)[\s\S])*?<\/p:txBody>/,
-            (m, prefix) => prefix + newMpcTxBody
+            /<a:txBody>(?:(?!<\/a:txBody>)[\s\S])*?\$59\.50(?:(?!<\/a:txBody>)[\s\S])*?<\/a:txBody>/,
+            newMpcTxBody
         );
 
-        // Row 4 col 4 — management fee
-        xml = rt(xml, '$770.00', d.mgmtFee);
+        // Row 4 col 4 — management fee (only replace if value is available)
+        if (d.mgmtFee && d.mgmtFee !== '—') xml = rt(xml, '$770.00', d.mgmtFee);
 
         // Row 4 col 5 — leave $0.00 (upgrades/additional)
 
         // Row 4 col 6 — total monthly
         xml = rt(xml, '$2,980 - $4,185', d.total);
 
-        // Grey box — One-Off Setup Costs: replace '$200' with actual setup fee
-        xml = rt(xml, ' setup fee\xa0$200 per seat', ` setup fee\xa0${d.setupFee} per seat`);
+        // Grey box — One-Off Setup Costs bullet.
+        // Exact run text: ' setup fee\u00a0$200 per seat' (\u00a0 = non-breaking space)
+        xml = rt(xml, ' setup fee\u00a0$200 per seat', ` setup fee\u00a0${d.setupFee} per seat`);
 
         return xml;
     });
