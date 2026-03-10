@@ -300,7 +300,9 @@ async function buildProposalFromTemplate(d) {
     }
 
     // ── Download ──────────────────────────────────────────
-    const blob     = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    // Do NOT force compression — preserves original per-entry type (STORE for fonts etc).
+    // Forcing DEFLATE here would try to re-deflate already-STORED binary font files → corruption.
+    const blob     = await zip.generateAsync({ type: 'blob' });
     const safeName = (d.clientCompany || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_');
     const fileName = `Cloudstaff_Proposal_${safeName}_${d.quoteNumber}.pptx`;
     const url      = URL.createObjectURL(blob);
@@ -320,9 +322,8 @@ async function patch(zip, path, fn) {
 }
 
 // ── Logo insertion ────────────────────────────────────
-// Adds client logo bottom-left of slide 1, next to Cloudstaff logo.
-// Cloudstaff logo sits ~x=0.3" y=4.56" w=1.2" h=0.55"
-// Client logo placed at x=1.8" y=4.56" h=0.55" (width auto via aspect)
+// Client logo placed center-bottom of slide 1.
+// Slide 10" x 5.625". Logo: x=4.0" y=4.45" w=2.0" h=0.9"
 
 async function insertLogo(zip, logoBase64DataUrl) {
     try {
@@ -365,13 +366,12 @@ async function insertLogo(zip, logoBase64DataUrl) {
         }
 
         // Inject <p:pic> into slide1 spTree
-        // 1" = 914400 EMU
-        // Position: x=1.8" y=4.52" w=1.5" h=0.6" (small, next to CS logo)
+        // Center bottom: x=4.0" y=4.45" w=2.0" h=0.9" on 10"x5.625" slide
         const EMU = 914400;
-        const lx  = Math.round(1.80 * EMU);
-        const ly  = Math.round(4.52 * EMU);
-        const lw  = Math.round(1.50 * EMU);
-        const lh  = Math.round(0.60 * EMU);
+        const lx  = 3657600;  // 4.0" — centered (slideW=9144000, logoW=1828800)
+        const ly  = 4069080;  // 4.45" — bottom strip
+        const lw  = 1828800;  // 2.0"
+        const lh  =  822960;  // 0.9"
 
         const picXml = `<p:pic xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
             `<p:nvPicPr><p:cNvPr id="9001" name="ClientLogo"/>` +
