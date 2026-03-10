@@ -195,9 +195,12 @@ async function buildProposalFromTemplate(d) {
     const zip = await JSZip.loadAsync(await resp.arrayBuffer());
 
     // ── Slide 1: Cover ──────────────────────────────────
-    // Date: replace the two date runs in the subtitle shape.
-    // Rep details: target shape cNvPr id="165" (top-right text box) and replace its
-    // ENTIRE txBody — works regardless of what placeholder text the template has.
+    // Template shapes on slide 1:
+    //   id=162 — title text box ("Remote staffing proposal")
+    //   id=163 — subtitle/date text box ("March 9, 2026") — single run, sz=2000
+    //   id=164 — Cloudstaff logo image (rId3 → image17.png), x=6.04" y=1.80"
+    //   NO shape 165 — rep details box was removed. Code inserts new shape id=9002.
+    // Rep details inserted at x=5519650 y=182880 (same left edge as logo, above it).
     await patch(zip, 'ppt/slides/slide1.xml', xml => {
 
         // Date — target subtitle shape id="163" and replace its entire txBody.
@@ -240,7 +243,9 @@ async function buildProposalFromTemplate(d) {
                 (m, prefix) => prefix + newTxBody
             );
         } else {
-            // Insert new shape: top-right, x=6.72" y=0.29" w=3.28" h=1.30"
+            // Insert new shape: top-right, aligned with Cloudstaff logo left edge (x=5519650)
+            // x=5519650 (6.04") y=182880 (0.20") cx=3355848 (3.67") cy=1280160 (1.40")
+            // This keeps text within the 10" slide boundary (right edge = 9.71")
             const newShape =
                 '<p:sp>' +
                 '<p:nvSpPr>' +
@@ -249,7 +254,7 @@ async function buildProposalFromTemplate(d) {
                 '<p:nvPr/>' +
                 '</p:nvSpPr>' +
                 '<p:spPr>' +
-                '<a:xfrm><a:off x="6143390" y="266413"/><a:ext cx="3000000" cy="1184909"/></a:xfrm>' +
+                '<a:xfrm><a:off x="5519650" y="182880"/><a:ext cx="3355848" cy="1280160"/></a:xfrm>' +
                 '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>' +
                 '<a:noFill/><a:ln><a:noFill/></a:ln>' +
                 '</p:spPr>' +
@@ -442,10 +447,10 @@ async function insertLogo(zip, logoBase64DataUrl) {
 
         const picXml = `<p:pic xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
             `<p:nvPicPr><p:cNvPr id="9001" name="ClientLogo"/>` +
-            `<p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>` +
-            `<p:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>` +
+            `<p:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>` +
+            `<p:blipFill><a:blip r:embed="${rId}"/><a:srcRect/></p:blipFill>` +
             `<p:spPr><a:xfrm><a:off x="${lx}" y="${ly}"/><a:ext cx="${lw}" cy="${lh}"/></a:xfrm>` +
-            `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
+            `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr></p:pic>`;
 
         const slideFile = zip.file('ppt/slides/slide1.xml');
         if (slideFile) {
