@@ -99,6 +99,9 @@ function populateHardwareDropdown() {
         });
         sel.appendChild(og);
     });
+    // Default to mPC Office 5 Laptop on every fresh load
+    const office5 = calcHardwareData.find(p => p.name && p.name.includes('Office 5'));
+    if (office5) sel.value = office5.id;
 }
 
 function getHardwarePrice(hardwareId, currency, isElevate) {
