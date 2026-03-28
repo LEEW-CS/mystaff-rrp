@@ -52,7 +52,7 @@ body { font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #
 .sidebar.collapsed .btn-logout svg { margin: 0; }
 .sidebar.collapsed .btn-logout-label { display: none; }
 /* Tooltip on hover when collapsed */
-.sidebar.collapsed .nav-item::after { content: attr(data-label); position: absolute; left: calc(var(--sidebar-collapsed-width) - 4px); background: #1e293b; color: white; font-size: 0.8rem; font-weight: 500; white-space: nowrap; padding: 0.4rem 0.75rem; border-radius: 6px; box-shadow: 2px 2px 8px rgba(0,0,0,0.3); pointer-events: none; opacity: 0; transform: translateX(4px); transition: opacity 0.15s, transform 0.15s; z-index: 200; }
+.sidebar.collapsed .nav-item::after { content: attr(data-label); position: absolute; left: calc(var(--sidebar-collapsed-width) - 4px); background: #1e293b; color: white; font-size: 0.8rem; font-weight: 500; white-space: nowrap; padding: 0.4rem 0.75rem; border-radius: 6px; box-shadow: 2px 2px 8px rgba(0,0,0,0.3); pointer-events: none; opacity: 0; transform: translateX(4px); transition: opacity 0.15s, transform 0.15s; z-index: 300; }
 .sidebar.collapsed .nav-item:hover::after { opacity: 1; transform: translateX(8px); }
 /* Hamburger button */
 .sidebar-toggle { background: none; border: none; cursor: pointer; padding: 0.5rem; color: rgba(255,255,255,0.7); border-radius: 6px; transition: background 0.15s, color 0.15s; display: flex; align-items: center; justify-content: center; }
@@ -194,7 +194,7 @@ body { font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #
 .data-table .actions { display: flex; gap: 0.5rem; }
 
 /* Modal */
-.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; }
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; }
 .modal-overlay.active { display: flex; }
 .modal { background: var(--white); border-radius: 12px; padding: 1.5rem; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
