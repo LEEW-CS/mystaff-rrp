@@ -225,16 +225,38 @@ If a role cannot be found, use null for all salary/confidence fields and "Role N
 Output order must match input order exactly.`,
 };
 
-// ── Anthropic API Key (admin enters once, stored in sessionStorage) ──
+// ── Anthropic API Key — stored in Supabase app_settings, cached in memory ──
+let srApiKeyCache = null;   // in-memory cache for this session
+
 function srGetApiKey() {
-    return sessionStorage.getItem('sr_anthropic_key') || '';
+    return srApiKeyCache || '';
 }
-function srSetApiKey(key) {
-    sessionStorage.setItem('sr_anthropic_key', key.trim());
+
+async function srLoadApiKeyFromDB() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'anthropic_api_key')
+            .single();
+        if (error || !data) return;
+        srApiKeyCache = data.value || null;
+    } catch(e) {
+        console.warn('srLoadApiKeyFromDB:', e.message);
+    }
+}
+
+async function srSaveApiKeyToDB(key) {
+    const { error } = await supabaseClient
+        .from('app_settings')
+        .upsert({ key: 'anthropic_api_key', value: key }, { onConflict: 'key' });
+    if (error) throw new Error(error.message);
+    srApiKeyCache = key;
 }
 
 // ── Init ────────────────────────────────────────────
 async function initSalaryResearch() {
+    await srLoadApiKeyFromDB();   // fetch key silently — no user action needed
     await srLoadRoles();
     srRenderMarketTabs();
     srRenderBatchSelector();
@@ -390,17 +412,21 @@ function srRenderApiKeySection() {
     const wrap = document.getElementById('srApiKeySection');
     if (!wrap) return;
     const hasKey = !!srGetApiKey();
+    const isAdmin = currentUser && currentUser.role === 'Admin';
     wrap.innerHTML = `
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
             <div style="display:flex;align-items:center;gap:0.5rem;">
-                <div style="width:8px;height:8px;border-radius:50%;background:${hasKey ? '#22c55e' : '#ef4444'};"></div>
+                <div style="width:8px;height:8px;border-radius:50%;background:${hasKey ? '#22c55e' : '#ef4444'};flex-shrink:0;"></div>
                 <span style="font-size:0.8rem;color:var(--text-muted);">
-                    Anthropic API Key: ${hasKey ? '<span style="color:#22c55e;font-weight:600;">Configured</span>' : '<span style="color:#ef4444;font-weight:600;">Not set</span>'}
+                    Anthropic API Key: ${hasKey
+                        ? '<span style="color:#22c55e;font-weight:600;">Configured</span>'
+                        : '<span style="color:#ef4444;font-weight:600;">Not configured — contact your administrator</span>'}
                 </span>
             </div>
+            ${isAdmin ? `
             <button class="btn btn-secondary btn-sm" onclick="srShowApiKeyModal()" style="font-size:0.75rem;">
-                ${hasKey ? '🔑 Update Key' : '🔑 Set API Key'}
-            </button>
+                🔑 ${hasKey ? 'Update Key' : 'Set API Key'}
+            </button>` : ''}
         </div>
     `;
 }
@@ -409,20 +435,26 @@ function srCheckApiKey() {
     const btn = document.getElementById('srRunBtn');
     if (!btn) return;
     btn.disabled = !srGetApiKey();
-    btn.title = srGetApiKey() ? '' : 'Set your Anthropic API key first';
+    btn.title = srGetApiKey() ? '' : 'API key not configured — contact your administrator';
 }
 
 function srShowApiKeyModal() {
-    const current = srGetApiKey();
-    document.getElementById('srApiKeyInput').value = current ? '••••••••••••••••' + current.slice(-4) : '';
-    document.getElementById('srApiKeyInput').dataset.loaded = current ? '1' : '0';
+    // Admin only — guard just in case
+    if (!currentUser || currentUser.role !== 'Admin') return;
+    const hasKey = !!srGetApiKey();
+    document.getElementById('srApiKeyInput').value = '';
+    document.getElementById('srApiKeyPlaceholder').textContent = hasKey
+        ? 'Leave blank to keep existing key, or paste a new key to replace it'
+        : 'Paste your Anthropic API key (sk-ant-...)';
     showModal('srApiKeyModal');
 }
 
-function srSaveApiKey() {
+async function srSaveApiKey() {
     const inp = document.getElementById('srApiKeyInput');
     const val = inp.value.trim();
-    if (!val || val.startsWith('••')) {
+
+    // Blank = keep existing
+    if (!val) {
         hideModal('srApiKeyModal');
         return;
     }
@@ -430,11 +462,21 @@ function srSaveApiKey() {
         alert('That does not look like a valid Anthropic API key (should start with sk-ant-)');
         return;
     }
-    srSetApiKey(val);
-    hideModal('srApiKeyModal');
-    srRenderApiKeySection();
-    srCheckApiKey();
-    srLog('✅ API key saved for this session', 'success');
+
+    const saveBtn = document.getElementById('srApiKeySaveBtn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
+    try {
+        await srSaveApiKeyToDB(val);
+        hideModal('srApiKeyModal');
+        srRenderApiKeySection();
+        srCheckApiKey();
+        srLog('✅ API key saved to database', 'success');
+    } catch(e) {
+        alert('Failed to save API key: ' + e.message);
+    } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Key'; }
+    }
 }
 
 // ── Run Research ────────────────────────────────────

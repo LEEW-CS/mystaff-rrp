@@ -394,3 +394,31 @@ body { font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #
 .pb-save-bar .pb-unsaved-msg { font-size: 0.8rem; color: #b45309; display: none; align-items: center; gap: 0.4rem; }
 .pb-save-bar .pb-unsaved-msg.visible { display: flex; }
 .pb-save-bar-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* =====================================================
+   SALARY RESEARCH MODULE
+   ===================================================== */
+
+.sr-batch-chip {
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+.sr-batch-chip:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+.sr-batch-chip.sr-chip-active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+.sr-tab-panel {
+    animation: fadeIn 0.15s ease;
+}

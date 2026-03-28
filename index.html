@@ -1443,21 +1443,21 @@
             </div>
             <div class="modal-body">
                 <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.6;">
-                    Your API key is stored in this browser session only — it is never saved to the database.
-                    You will need to re-enter it after closing or refreshing the browser.
+                    The API key is saved to the database and shared across all admin sessions —
+                    you only need to set this once.
                 </p>
                 <div class="form-group">
                     <label class="form-label">Anthropic API Key</label>
                     <input type="password" id="srApiKeyInput" class="form-input"
                         placeholder="sk-ant-api03-..." autocomplete="off">
-                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem;">
+                    <div id="srApiKeyPlaceholder" style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem;">
                         Find your key at console.anthropic.com → API Keys
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="hideModal('srApiKeyModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="srSaveApiKey()">Save Key</button>
+                <button class="btn btn-primary" id="srApiKeySaveBtn" onclick="srSaveApiKey()">Save Key</button>
             </div>
         </div>
     </div>
