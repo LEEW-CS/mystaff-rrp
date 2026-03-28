@@ -272,7 +272,7 @@ async function srLoadRoles() {
         while (true) {
             const { data, error } = await supabaseClient
                 .from('salary_ranges')
-                .select('id, jpid_level, job_title, category, years_experience')
+                .select('id, jpid_level, job_title, category, batch, years_experience')
                 .order('jpid_level', { ascending: true })
                 .range(offset, offset + 999);
             if (error) throw error;
