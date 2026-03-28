@@ -47,15 +47,15 @@ function renderQuotesTable(quotes) {
             ? '<span style="display:inline-block;background:#065f46;color:#fff;font-size:0.6rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;margin-left:0.3rem;">CO</span>'
             : '<span style="display:inline-block;background:#1e40af;color:#fff;font-size:0.6rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;margin-left:0.3rem;">PH</span>';
         const loadFn = mkt === 'CO' ? 'loadQuoteIntoCalcCO' : 'loadQuoteIntoCalc';
-        return `<tr style="font-size:0.75rem;">
-            <td style="font-family:'Space Mono',monospace;font-weight:600;color:var(--accent);white-space:nowrap;">${q.quote_number || 'N/A'}${mktBadge}</td>
-            <td style="max-width:180px;word-wrap:break-word;"><strong style="font-size:0.75rem;">${q.quote_name || '--'}</strong>${q.description ? `<br><span style="font-size:0.68rem;color:var(--text-muted);font-weight:400;">${q.description}</span>` : ''}</td>
-            <td style="max-width:110px;word-wrap:break-word;">${q.candidate_name || '--'}</td>
-            <td style="max-width:130px;word-wrap:break-word;">${q.role_name || '--'}</td>
-            <td style="font-family:'Space Mono',monospace;font-weight:600;white-space:nowrap;">${q.total_monthly || '--'}</td>
-            <td style="max-width:100px;word-wrap:break-word;">${q.created_by || '--'}</td>
-            <td style="white-space:nowrap;">${dateStr}</td>
-            <td class="actions" style="white-space:nowrap;">
+        return `<tr style="font-size:0.73rem;vertical-align:top;">
+            <td style="font-family:'Space Mono',monospace;font-weight:600;color:var(--accent);white-space:nowrap;width:90px;">${q.quote_number || 'N/A'}${mktBadge}</td>
+            <td style="width:200px;overflow:hidden;"><strong style="font-size:0.73rem;display:block;">${q.quote_name || '--'}</strong>${q.description ? `<span style="font-size:0.67rem;color:var(--text-muted);font-weight:400;">${q.description}</span>` : ''}</td>
+            <td style="width:90px;overflow:hidden;word-break:break-word;">${q.candidate_name || '--'}</td>
+            <td style="width:140px;overflow:hidden;word-break:break-word;">${q.role_name || '--'}</td>
+            <td style="font-family:'Space Mono',monospace;font-weight:600;font-size:0.7rem;width:130px;white-space:nowrap;">${q.total_monthly || '--'}</td>
+            <td style="width:80px;overflow:hidden;word-break:break-word;">${q.created_by || '--'}</td>
+            <td style="white-space:nowrap;width:80px;">${dateStr}</td>
+            <td class="actions" style="white-space:nowrap;width:100px;">
                 <button style="${btnStyle}background:var(--surface);color:var(--text);border:1px solid var(--border);" onclick="${loadFn}(${JSON.stringify(q).replace(/"/g,'&quot;')})">Load</button>
                 <button style="${btnStyle}background:#1B8EF2;color:#fff;" onclick="showProposalModal(${q.id})">📄</button>
                 ${canDelete ? `<button style="${btnStyle}background:#ef4444;color:#fff;" onclick="deleteQuote(${q.id})">✕</button>` : ''}
