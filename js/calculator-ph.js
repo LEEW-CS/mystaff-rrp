@@ -589,7 +589,7 @@ function updateNightMealsDefault() {
     const nightHours = parseInt(document.getElementById('nightDiffHours').value) || 0;
     const isWFO = priceBook.includes('WFO') || priceBook.includes('CS Now WFO');
     const sel = document.getElementById('nightMealsProduct');
-    if (isWFO && nightHours === 8 && sel && calcNightMealsData.length > 1) {
+    if (isWFO && nightHours > 0 && sel && calcNightMealsData.length > 1) {
         // Select Planet Yum Level A Standard (index 1 usually)
         const levelA = calcNightMealsData.find(m => m.name && m.name.toLowerCase().includes('level a'));
         if (levelA) sel.value = levelA.id;
