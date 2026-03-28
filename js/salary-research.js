@@ -320,33 +320,69 @@ function srRenderBatchSelector() {
     const wrap = document.getElementById('srBatchSelector');
     if (!wrap) return;
 
-    // Group roles by category for display counts
+    // Count roles per batch
     const batchCounts = {};
     srAllRoles.forEach(r => {
         if (r.batch) batchCounts[r.batch] = (batchCounts[r.batch] || 0) + 1;
     });
 
-    const catCounts = {};
+    // Build category label per batch (unique categories, joined if multiple)
+    const batchCats = {};
     srAllRoles.forEach(r => {
-        if (r.category) catCounts[r.category] = (catCounts[r.category] || 0) + 1;
+        if (!r.batch || !r.category) return;
+        if (!batchCats[r.batch]) batchCats[r.batch] = new Set();
+        batchCats[r.batch].add(r.category);
     });
+
+    // Shorten long category names for chip display
+    const shortCat = (cats) => {
+        const arr = [...cats];
+        if (arr.length === 1) {
+            return arr[0]
+                .replace('Engineering ', 'Eng. ')
+                .replace('IT Software ', 'IT Sw. ')
+                .replace('IT ', 'IT ')
+                .replace(' & ', ' & ')
+                .replace('BPO ', 'BPO ')
+                .replace('Banking & Financial Services', 'Banking & Finance')
+                .replace('Creative, Design & Multimedia', 'Creative & Design')
+                .replace('Integrated Management System (IMS)', 'IMS')
+                .replace('Logistics and Supply Chain', 'Logistics & SC')
+                .replace('Data Science / Analytics', 'Data Science');
+        }
+        // Multiple categories — show first word of each
+        return arr.map(c => c.split(/[\s,\/]/)[0]).join(' / ');
+    };
+
+    const selectedCount = srSelectedBatches === null
+        ? srBatches.length
+        : srSelectedBatches.length;
+    const selectedRoles = srGetActiveRoles().length;
 
     wrap.innerHTML = `
         <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap;">
             <button class="btn btn-secondary btn-sm" onclick="srSelectAllBatches()" style="font-size:0.75rem;">Select All</button>
             <button class="btn btn-secondary btn-sm" onclick="srClearBatches()" style="font-size:0.75rem;">Clear All</button>
-            <span id="srBatchCount" style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem;">
-                ${srAllRoles.length} roles total
+            <span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem;">
+                ${selectedCount === srBatches.length
+                    ? `All ${srBatches.length} batches · ${srAllRoles.length} roles`
+                    : selectedCount === 0
+                        ? '<span style="color:#ef4444;">None selected</span>'
+                        : `${selectedCount} of ${srBatches.length} batches · ${selectedRoles} roles`}
             </span>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="srBatchChips">
             ${srBatches.map(b => {
                 const count = batchCounts[b] || 0;
+                const cats = batchCats[b] ? shortCat(batchCats[b]) : '';
                 const sel = srSelectedBatches === null || srSelectedBatches.includes(b);
+                const fullCats = batchCats[b] ? [...batchCats[b]].join(', ') : '';
                 return `<button class="sr-batch-chip ${sel ? 'sr-chip-active' : ''}"
                     onclick="srToggleBatch('${b}')"
-                    title="${count} roles">
-                    ${b} <span style="opacity:0.65;font-size:0.7rem;">(${count})</span>
+                    title="${fullCats} · ${count} roles">
+                    <span style="font-weight:600;font-size:0.72rem;">${b.replace('Batch ','B')}</span>
+                    <span style="font-size:0.68rem;margin-left:0.3rem;opacity:${sel ? '0.85' : '0.6'};">${cats}</span>
+                    <span style="font-size:0.65rem;margin-left:0.25rem;opacity:0.55;">(${count})</span>
                 </button>`;
             }).join('')}
         </div>
