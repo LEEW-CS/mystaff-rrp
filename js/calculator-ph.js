@@ -705,7 +705,7 @@ function showRoleDropdown(roles) {
 function selectRole(role) {
     document.getElementById('roleSearchInput').value = role.job_title;
     document.getElementById('selectedRoleId').value = role.id;
-    document.getElementById('selectedRoleYears').value = role.years_experience || '';
+    if (document.getElementById('selectedRoleYears')) document.getElementById('selectedRoleYears').value = role.years_experience || '';
     document.getElementById('roleDropdown').classList.remove('open');
     // Auto-fill salary with low/high
     document.getElementById('baseSalaryFrom').value = role.low_salary || role.median_salary;
@@ -725,7 +725,7 @@ function selectRole(role) {
 function clearSelectedRole() {
     document.getElementById('roleSearchInput').value = '';
     document.getElementById('selectedRoleId').value = '';
-    document.getElementById('selectedRoleYears').value = '';
+    if (document.getElementById('selectedRoleYears')) document.getElementById('selectedRoleYears').value = '';
     document.getElementById('selectedRolePill').classList.add('hidden');
     document.getElementById('salaryRangeHint').style.display = 'none';
     // Also reset browse dropdowns
@@ -910,7 +910,7 @@ async function saveQuote() {
         setup_fee_amount: parseFloat(document.getElementById('resultSetup').textContent.replace(/[^0-9.-]/g,'')) || null,
         total_monthly: document.getElementById('resultTotalMonthly').textContent,
         total_monthly_to: (() => { const t = document.getElementById('resultTotalMonthly').textContent; const m = t.match(/[\d,]+\.?\d*/g); return m && m.length > 1 ? parseFloat(m[m.length-1].replace(/,/g,'')) : null; })(),
-        years_experience: document.getElementById('selectedRoleYears').value || null,
+        years_experience: document.getElementById('selectedRoleYears')?.value || null,
         created_by: currentUser ? (currentUser.name || currentUser.email || 'Unknown') : 'Unknown',
     };
 
