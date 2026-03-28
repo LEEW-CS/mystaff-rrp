@@ -252,7 +252,6 @@
                                 <input type="text" id="roleSearchInput" placeholder="Search roles... (e.g. Accountant, Developer)" oninput="onRoleSearch()" autocomplete="off">
                                 <div class="role-dropdown" id="roleDropdown"></div>
                                 <input type="hidden" id="selectedRoleId">
-                                <input type="hidden" id="selectedRoleYears">
                                 <div id="selectedRolePill" class="role-pill hidden"></div>
                             </div>
                             <div class="form-group" style="margin-top:0.5rem;margin-bottom:0;">
@@ -994,7 +993,7 @@
                         </div>
                         <div class="form-group">
                             <label>Select Price Book:</label>
-                            <select id="coPriceBook" onchange="calculateCO()">
+                            <select id="coPriceBook" onchange="onCOPriceBookChange()">
                                 <option value="">Loading price books…</option>
                             </select>
                         </div>
@@ -1059,7 +1058,7 @@
                         <div class="two-col">
                             <div class="form-group">
                                 <label>Night Diff Hours:</label>
-                                <select id="coNightDiffHours" onchange="calculateCO()">
+                                <select id="coNightDiffHours" onchange="updateCONightMealsDefault(); calculateCO()">
                                     <option value="0" selected>0</option>
                                     <option value="1">1</option>
                                     <option value="2">2</option>
@@ -2323,7 +2322,7 @@
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 
     <!-- App Modules (load order matters) -->
     <script src="js/config.js"></script>

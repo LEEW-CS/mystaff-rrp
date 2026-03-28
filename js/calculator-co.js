@@ -120,6 +120,33 @@ function populateCONightMealsDropdown() {
     if (noMeals) sel.value = noMeals.id;
 }
 
+
+// =====================================================
+// NIGHT MEALS / SEPARATION DEFAULTS (CO)
+// Mirrors PH logic: onPriceBookChange / updateNightMealsDefault
+// =====================================================
+function onCOPriceBookChange() {
+    updateCONightMealsDefault();
+    calculateCO();
+}
+
+function updateCONightMealsDefault() {
+    const priceBook  = document.getElementById('coPriceBook').value;
+    const nightHours = parseInt(document.getElementById('coNightDiffHours').value) || 0;
+    const isWFO      = priceBook.includes('WFO');
+    const sel        = document.getElementById('coNightMealsProduct');
+    if (!sel || !calcNightMealsData.length) return;
+    if (isWFO && nightHours > 0) {
+        // Auto-select Planet Yum Level A Standard Night Meal
+        const levelA = calcNightMealsData.find(m => m.name && m.name.toLowerCase().includes('level a'));
+        if (levelA) sel.value = levelA.id;
+    } else {
+        // Revert to No Night Meals
+        const noMeals = calcNightMealsData.find(m => m.name && m.name.toLowerCase().includes('no night'));
+        if (noMeals) sel.value = noMeals.id;
+    }
+}
+
 async function loadCOSalaryRoles() {
     try {
         const { data, error } = await supabaseClient
@@ -663,15 +690,7 @@ async function saveQuoteCO() {
         fx_month_id: parseInt(document.getElementById('coExchangeRateDate').value) || null,
         hardware_id: parseInt(document.getElementById('coMpcHardware').value) || null,
         night_meal_id: parseInt(document.getElementById('coNightMealsProduct').value) || null,
-        edc_amount:       parseFloat(document.getElementById('coResultEDC').textContent.replace(/[^0-9.-]/g,'')) || null,
-        edc_amount_to:    (() => { const t = document.getElementById('coResultEDC').textContent; const m = t.match(/[\d,]+\.?\d*/g); return m && m.length > 1 ? parseFloat(m[m.length-1].replace(/,/g,'')) : null; })(),
-        mpc_amount:       parseFloat(document.getElementById('coResultMPC').textContent.replace(/[^0-9.-]/g,'')) || null,
-        mpc_name:         (() => { const s = document.getElementById('coMpcHardware'); return s && s.selectedIndex >= 0 ? s.options[s.selectedIndex].text : null; })(),
-        mgmt_fee_amount:  parseFloat(document.getElementById('coResultCSFee').textContent.replace(/[^0-9.-]/g,'')) || null,
-        setup_fee_amount: parseFloat(document.getElementById('coResultSetup').textContent.replace(/[^0-9.-]/g,'')) || null,
-        total_monthly:    document.getElementById('coResultTotalMonthly').textContent,
-        total_monthly_to: (() => { const t = document.getElementById('coResultTotalMonthly').textContent; const m = t.match(/[\d,]+\.?\d*/g); return m && m.length > 1 ? parseFloat(m[m.length-1].replace(/,/g,'')) : null; })(),
-        years_experience: null,   // CO calc does not capture years experience
+        total_monthly: document.getElementById('coResultTotalMonthly').textContent,
         created_by: currentUser ? (currentUser.name || currentUser.email || 'Unknown') : 'Unknown',
     };
 
