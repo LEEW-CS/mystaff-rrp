@@ -36,7 +36,7 @@ let srAllRoles       = [];          // all roles from salary_ranges
 let srBatches        = [];          // unique batch names sorted
 let srCategories     = [];          // unique categories sorted
 let srSelectedMarket = 'PH';
-let srSelectedBatches = [];         // [] = all
+let srSelectedBatches = null;       // null = all, [] = none, [...] = explicit
 let srRunning        = false;
 let srAbortFlag      = false;
 let srCurrentRunId   = null;
@@ -342,7 +342,7 @@ function srRenderBatchSelector() {
         <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="srBatchChips">
             ${srBatches.map(b => {
                 const count = batchCounts[b] || 0;
-                const sel = srSelectedBatches.length === 0 || srSelectedBatches.includes(b);
+                const sel = srSelectedBatches === null || srSelectedBatches.includes(b);
                 return `<button class="sr-batch-chip ${sel ? 'sr-chip-active' : ''}"
                     onclick="srToggleBatch('${b}')"
                     title="${count} roles">
@@ -355,33 +355,32 @@ function srRenderBatchSelector() {
 }
 
 function srToggleBatch(batch) {
-    // If currently "all", switch to explicit set minus this one
-    if (srSelectedBatches.length === 0) {
+    if (srSelectedBatches === null) {
+        // Was "all" — switch to all except this one
         srSelectedBatches = srBatches.filter(b => b !== batch);
     } else {
         const idx = srSelectedBatches.indexOf(batch);
         if (idx >= 0) srSelectedBatches.splice(idx, 1);
         else srSelectedBatches.push(batch);
-        // If all selected, reset to [] (means all)
-        if (srSelectedBatches.length === srBatches.length) srSelectedBatches = [];
+        // If all batches are now selected, reset to null (= all)
+        if (srSelectedBatches.length === srBatches.length) srSelectedBatches = null;
     }
     srRenderBatchSelector();
 }
 
 function srSelectAllBatches() {
-    srSelectedBatches = [];
+    srSelectedBatches = null;   // null = all selected
     srRenderBatchSelector();
 }
 
 function srClearBatches() {
-    srSelectedBatches = [];
+    srSelectedBatches = [];     // empty array = none selected
     srRenderBatchSelector();
-    srSelectedBatches = []; // keep as all for now — "clear" means pick manually
 }
 
 function srGetActiveBatches() {
-    if (srSelectedBatches.length === 0) return srBatches;
-    return srSelectedBatches;
+    if (srSelectedBatches === null) return srBatches;  // null = all
+    return srSelectedBatches;                           // [] or partial = explicit list
 }
 
 function srGetActiveRoles() {
@@ -394,8 +393,11 @@ function srUpdateRunSummary() {
     if (!el) return;
     const roles = srGetActiveRoles();
     const market = SR_MARKETS.find(m => m.code === srSelectedMarket);
-    // Estimate batches (groups of ~60)
     const batchCount = srGetActiveBatches().length;
+    if (batchCount === 0) {
+        el.innerHTML = '<span style="color:#ef4444;">No batches selected — click batch chips above to select.</span>';
+        return;
+    }
     el.innerHTML = `
         <strong>${roles.length}</strong> roles across
         <strong>${batchCount}</strong> batches →
@@ -484,7 +486,7 @@ async function srStartResearch() {
     if (!srApiKeyConfigured) { alert('API key not configured. Please set it via the Update Key button.'); return; }
 
     const roles = srGetActiveRoles();
-    if (!roles.length) { alert('No roles selected.'); return; }
+    if (!roles.length || !srGetActiveBatches().length) { alert('No batches selected. Click batch chips to select some.'); return; }
 
     const market = srSelectedMarket;
     const marketInfo = SR_MARKETS.find(m => m.code === market);
