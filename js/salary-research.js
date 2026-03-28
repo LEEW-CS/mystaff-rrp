@@ -225,24 +225,24 @@ If a role cannot be found, use null for all salary/confidence fields and "Role N
 Output order must match input order exactly.`,
 };
 
-// ── Anthropic API Key — stored in Supabase app_settings, cached in memory ──
-let srApiKeyCache = null;   // in-memory cache for this session
+// ── Anthropic API Key — stored server-side in Supabase app_settings ───
+// The key NEVER reaches the browser. The Edge Function reads it directly.
+// Browser only checks that a key row EXISTS (for the status indicator).
+let srApiKeyConfigured = false;
 
-function srGetApiKey() {
-    return srApiKeyCache || '';
-}
+// Edge Function URL — same Supabase project
+const SR_EDGE_URL = `${SUPABASE_URL}/functions/v1/salary-research`;
 
-async function srLoadApiKeyFromDB() {
+async function srCheckKeyConfigured() {
     try {
         const { data, error } = await supabaseClient
             .from('app_settings')
-            .select('value')
+            .select('key')
             .eq('key', 'anthropic_api_key')
             .single();
-        if (error || !data) return;
-        srApiKeyCache = data.value || null;
+        srApiKeyConfigured = !error && !!data;
     } catch(e) {
-        console.warn('srLoadApiKeyFromDB:', e.message);
+        srApiKeyConfigured = false;
     }
 }
 
@@ -251,12 +251,12 @@ async function srSaveApiKeyToDB(key) {
         .from('app_settings')
         .upsert({ key: 'anthropic_api_key', value: key }, { onConflict: 'key' });
     if (error) throw new Error(error.message);
-    srApiKeyCache = key;
+    srApiKeyConfigured = true;
 }
 
 // ── Init ────────────────────────────────────────────
 async function initSalaryResearch() {
-    await srLoadApiKeyFromDB();   // fetch key silently — no user action needed
+    await srCheckKeyConfigured();  // checks existence only — key stays server-side
     await srLoadRoles();
     srRenderMarketTabs();
     srRenderBatchSelector();
@@ -411,21 +411,20 @@ function srUpdateRunSummary() {
 function srRenderApiKeySection() {
     const wrap = document.getElementById('srApiKeySection');
     if (!wrap) return;
-    const hasKey = !!srGetApiKey();
     const isAdmin = currentUser && currentUser.role === 'Admin';
     wrap.innerHTML = `
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
             <div style="display:flex;align-items:center;gap:0.5rem;">
-                <div style="width:8px;height:8px;border-radius:50%;background:${hasKey ? '#22c55e' : '#ef4444'};flex-shrink:0;"></div>
+                <div style="width:8px;height:8px;border-radius:50%;background:${srApiKeyConfigured ? '#22c55e' : '#ef4444'};flex-shrink:0;"></div>
                 <span style="font-size:0.8rem;color:var(--text-muted);">
-                    Anthropic API Key: ${hasKey
+                    Anthropic API Key: ${srApiKeyConfigured
                         ? '<span style="color:#22c55e;font-weight:600;">Configured</span>'
                         : '<span style="color:#ef4444;font-weight:600;">Not configured — contact your administrator</span>'}
                 </span>
             </div>
             ${isAdmin ? `
             <button class="btn btn-secondary btn-sm" onclick="srShowApiKeyModal()" style="font-size:0.75rem;">
-                🔑 ${hasKey ? 'Update Key' : 'Set API Key'}
+                🔑 ${srApiKeyConfigured ? 'Update Key' : 'Set API Key'}
             </button>` : ''}
         </div>
     `;
@@ -434,16 +433,14 @@ function srRenderApiKeySection() {
 function srCheckApiKey() {
     const btn = document.getElementById('srRunBtn');
     if (!btn) return;
-    btn.disabled = !srGetApiKey();
-    btn.title = srGetApiKey() ? '' : 'API key not configured — contact your administrator';
+    btn.disabled = !srApiKeyConfigured;
+    btn.title = srApiKeyConfigured ? '' : 'API key not configured — contact your administrator';
 }
 
 function srShowApiKeyModal() {
-    // Admin only — guard just in case
     if (!currentUser || currentUser.role !== 'Admin') return;
-    const hasKey = !!srGetApiKey();
     document.getElementById('srApiKeyInput').value = '';
-    document.getElementById('srApiKeyPlaceholder').textContent = hasKey
+    document.getElementById('srApiKeyPlaceholder').textContent = srApiKeyConfigured
         ? 'Leave blank to keep existing key, or paste a new key to replace it'
         : 'Paste your Anthropic API key (sk-ant-...)';
     showModal('srApiKeyModal');
@@ -453,11 +450,8 @@ async function srSaveApiKey() {
     const inp = document.getElementById('srApiKeyInput');
     const val = inp.value.trim();
 
-    // Blank = keep existing
-    if (!val) {
-        hideModal('srApiKeyModal');
-        return;
-    }
+    if (!val) { hideModal('srApiKeyModal'); return; }
+
     if (!val.startsWith('sk-ant-')) {
         alert('That does not look like a valid Anthropic API key (should start with sk-ant-)');
         return;
@@ -487,7 +481,7 @@ function srRenderRunTab() {
 
 async function srStartResearch() {
     if (srRunning) return;
-    if (!srGetApiKey()) { alert('Please set your Anthropic API key first.'); return; }
+    if (!srApiKeyConfigured) { alert('API key not configured. Please set it via the Update Key button.'); return; }
 
     const roles = srGetActiveRoles();
     if (!roles.length) { alert('No roles selected.'); return; }
@@ -570,46 +564,31 @@ function srAbortResearch() {
 
 // ── API Call ────────────────────────────────────────
 async function srResearchBatch(roles, market) {
-    const apiKey = srGetApiKey();
     const systemPrompt = SR_PROMPTS[market];
-    const roleList = roles.map((r, i) => `${i+1}. ${r.job_title}`).join('\n');
-    const userMessage = `Research salary benchmarks for the following ${roles.length} job roles:\n\n${roleList}`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Call Supabase Edge Function (server-side proxy — no CORS, key never in browser)
+    const response = await fetch(SR_EDGE_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-beta': 'interleaved-thinking-2025-05-14'
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
-            max_tokens: 16000,
-            thinking: { type: 'enabled', budget_tokens: 10000 },
-            tools: [{
-                type: 'web_search_20250305',
-                name: 'web_search'
-            }],
-            system: systemPrompt,
-            messages: [{ role: 'user', content: userMessage }]
-        })
+        body: JSON.stringify({ roles, market, systemPrompt }),
     });
 
     if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(`API ${response.status}: ${err.error?.message || response.statusText}`);
+        throw new Error(`Edge Function error ${response.status}: ${err.error || response.statusText}`);
     }
 
     const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    if (!data.result) throw new Error('No result returned from Edge Function');
 
-    // Extract the final text response (skip thinking blocks and tool_use/tool_result blocks)
-    const textBlocks = (data.content || []).filter(b => b.type === 'text');
-    if (!textBlocks.length) throw new Error('No text in API response');
-
-    const raw = textBlocks.map(b => b.text).join('');
-    return srParseJsonResponse(raw, roles);
+    return srParseJsonResponse(data.result, roles);
 }
+
 
 function srParseJsonResponse(raw, roles) {
     // Strip any accidental markdown fences
