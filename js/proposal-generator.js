@@ -537,7 +537,10 @@ async function insertLogo(zip, logoBase64DataUrl) {
             `<p:spPr><a:xfrm><a:off x="${slx}" y="${sly}"/><a:ext cx="${slw}" cy="${slh}"/></a:xfrm>` +
             `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
 
+        // Skip slides where mini logo looks out of place
+        const skipSlides = new Set([1, 7, 8, 11, 14, 18]);
         for (let sn = 1; sn <= 18; sn++) {
+            if (skipSlides.has(sn)) continue;
             const sPath = `ppt/slides/slide${sn}.xml`;
             const sFile = zip.file(sPath);
             if (!sFile) continue;
