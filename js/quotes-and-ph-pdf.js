@@ -28,28 +28,37 @@ function renderQuotesTable(quotes) {
     }
     table.style.display = '';
     noMsg.style.display = 'none';
+    // Micro button style shared across all action buttons
+    const btnStyle = 'display:inline-block;padding:0.18rem 0.45rem;font-size:0.68rem;font-weight:600;border-radius:4px;border:none;cursor:pointer;white-space:nowrap;';
     tbody.innerHTML = quotes.map(q => {
         const isOwner = currentUser && (currentUser.name === q.created_by || currentUser.email === q.created_by);
         const isAdmin = currentUser && currentUser.role === 'Admin';
         const canDelete = isOwner || isAdmin;
-        const dateStr = q.created_at ? new Date(q.created_at).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' }) : '--';
+        // Date + 24hr time
+        const dt = q.created_at ? new Date(q.created_at) : null;
+        const dateStr = dt
+            ? dt.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' })
+              + '<br><span style="color:var(--text-muted);">'
+              + dt.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', hour12:false })
+              + '</span>'
+            : '--';
         const mkt = q.market || 'PH';
         const mktBadge = mkt === 'CO'
-            ? '<span style="display:inline-block;background:#065f46;color:#fff;font-size:0.65rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.4rem;">CO</span>'
-            : '<span style="display:inline-block;background:#1e40af;color:#fff;font-size:0.65rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.4rem;">PH</span>';
+            ? '<span style="display:inline-block;background:#065f46;color:#fff;font-size:0.6rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;margin-left:0.3rem;">CO</span>'
+            : '<span style="display:inline-block;background:#1e40af;color:#fff;font-size:0.6rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;margin-left:0.3rem;">PH</span>';
         const loadFn = mkt === 'CO' ? 'loadQuoteIntoCalcCO' : 'loadQuoteIntoCalc';
-        return `<tr>
-            <td style="font-family:'Space Mono',monospace;font-weight:600;color:var(--accent);">${q.quote_number || 'N/A'}${mktBadge}</td>
-            <td><strong>${q.quote_name || '--'}</strong>${q.description ? `<br><span style="font-size:0.75rem;color:var(--text-muted);font-weight:400;">${q.description}</span>` : ''}</td>
-            <td>${q.candidate_name || '--'}</td>
-            <td>${q.role_name || '--'}</td>
-            <td style="font-family:'Space Mono',monospace;font-weight:600;">${q.total_monthly || '--'}</td>
-            <td>${q.created_by || '--'}</td>
-            <td style="font-size:0.75rem;color:var(--text-muted);">${dateStr}</td>
-            <td class="actions">
-                <button class="btn btn-secondary btn-sm" onclick="${loadFn}(${JSON.stringify(q).replace(/"/g,'&quot;')})">${mkt === 'CO' ? 'Load CO' : 'Load'}</button>
-                <button class="btn btn-sm" style="background:#1B8EF2;color:#fff;" onclick="showProposalModal(${q.id})">📄 Proposal</button>
-                ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteQuote(${q.id})">Delete</button>` : ''}
+        return `<tr style="font-size:0.75rem;">
+            <td style="font-family:'Space Mono',monospace;font-weight:600;color:var(--accent);white-space:nowrap;">${q.quote_number || 'N/A'}${mktBadge}</td>
+            <td style="max-width:180px;word-wrap:break-word;"><strong style="font-size:0.75rem;">${q.quote_name || '--'}</strong>${q.description ? `<br><span style="font-size:0.68rem;color:var(--text-muted);font-weight:400;">${q.description}</span>` : ''}</td>
+            <td style="max-width:110px;word-wrap:break-word;">${q.candidate_name || '--'}</td>
+            <td style="max-width:130px;word-wrap:break-word;">${q.role_name || '--'}</td>
+            <td style="font-family:'Space Mono',monospace;font-weight:600;white-space:nowrap;">${q.total_monthly || '--'}</td>
+            <td style="max-width:100px;word-wrap:break-word;">${q.created_by || '--'}</td>
+            <td style="white-space:nowrap;">${dateStr}</td>
+            <td class="actions" style="white-space:nowrap;">
+                <button style="${btnStyle}background:var(--surface);color:var(--text);border:1px solid var(--border);" onclick="${loadFn}(${JSON.stringify(q).replace(/"/g,'&quot;')})">Load</button>
+                <button style="${btnStyle}background:#1B8EF2;color:#fff;" onclick="showProposalModal(${q.id})">📄</button>
+                ${canDelete ? `<button style="${btnStyle}background:#ef4444;color:#fff;" onclick="deleteQuote(${q.id})">✕</button>` : ''}
             </td>
         </tr>`;
     }).join('');
