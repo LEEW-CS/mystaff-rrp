@@ -908,14 +908,20 @@
                 <h1>FX Rates</h1>
                 <p>Currency Conversion Rates (Base: AUD) — 1 AUD = X foreign currency</p>
             </div>
+            <!-- Market Tabs -->
+            <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+                <button class="btn btn-primary btn-sm" id="fxTabPH" onclick="switchFXMarket('PH')" style="font-size:0.8rem;">🇵🇭 Philippines</button>
+                <button class="btn btn-secondary btn-sm" id="fxTabCO" onclick="switchFXMarket('CO')" style="font-size:0.8rem;">🌎 Colombia</button>
+                <button class="btn btn-secondary btn-sm" id="fxTabIN" onclick="switchFXMarket('IN')" style="font-size:0.8rem;">🇮🇳 India</button>
+                <button class="btn btn-secondary btn-sm" id="fxTabKE" onclick="switchFXMarket('KE')" style="font-size:0.8rem;">🇰🇪 Kenya</button>
+            </div>
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                     <div class="card-title" style="margin-bottom:0;">💱 Exchange Rates by Month</div>
                     <button class="btn btn-primary btn-sm" onclick="showAddFXModal()">+ Add FX Month</button>
                 </div>
-                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1rem; font-size:0.8125rem; color:#1e40af;">
-                    <strong>🇵🇭 Philippines Rates:</strong> PHP → other currencies (e.g. PHP→AUD means 1 PHP = X AUD).<br>
-                    <strong>🌎 Colombia Rates:</strong> 1 COP = X foreign currency (shown as COP→USD etc.).
+                <div id="fxMarketInfo" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1rem; font-size:0.8125rem; color:#1e40af;">
+                    <strong>🇵🇭 Philippines Rates:</strong> PHP → other currencies (e.g. PHP→AUD means 1 PHP = X AUD, so divide PHP amount by this value to get AUD).
                 </div>
                 <div id="fxStatus"></div>
                 <div id="fxTablesContainer">

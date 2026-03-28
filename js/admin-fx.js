@@ -5,6 +5,28 @@ const FX_CURRENCIES_PH = ['php','usd','gbp','eur','hkd','sgd','cad','nzd','inr']
 const FX_CURRENCIES_CO = ['cop_usd','cop_aud','cop_gbp','cop_eur','cop_hkd','cop_sgd','cop_cad','cop_nzd','cop_php'];
 const FX_CURRENCIES_CO_LABELS = ['USD','AUD','GBP','EUR','HKD','SGD','CAD','NZD','PHP'];
 let fxCache = [];
+let fxActiveMarket = 'PH';
+
+const FX_MARKET_INFO = {
+    PH: '<strong>🇵🇭 Philippines Rates:</strong> PHP → other currencies (e.g. PHP→AUD means 1 PHP = X AUD, so divide PHP amount by this value to get AUD).',
+    CO: '<strong>🌎 Colombia Rates:</strong> COP → other currencies (e.g. COP→AUD means 1 COP = X AUD).',
+    IN: '<strong>🇮🇳 India Rates:</strong> INR → other currencies (e.g. INR→AUD means 1 INR = X AUD).',
+    KE: '<strong>🇰🇪 Kenya Rates:</strong> KES → other currencies (e.g. KES→AUD means 1 KES = X AUD).',
+};
+
+function switchFXMarket(market) {
+    fxActiveMarket = market;
+    // Update tab button styles
+    ['PH','CO','IN','KE'].forEach(m => {
+        const btn = document.getElementById('fxTab' + m);
+        if (btn) btn.className = m === market ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    });
+    // Update info banner
+    const info = document.getElementById('fxMarketInfo');
+    if (info) info.innerHTML = FX_MARKET_INFO[market] || '';
+    // Re-render table for this market
+    renderFXTable(market);
+}
 
 const FX_CURRENCIES_IN = ['inr_php','inr_aud','inr_gbp','inr_usd','inr_hkd','inr_sgd','inr_cad','inr_eur','inr_nzd'];
 const FX_CURRENCIES_KE = ['kes_aud','kes_usd','kes_hkd','kes_sgd','kes_gbp','kes_cad','kes_eur','kes_nzd'];
@@ -31,94 +53,69 @@ async function loadFXRates() {
             .select('*')
             .order('month_date', { ascending: false });
         if (error) throw error;
-
         fxCache = data || [];
-        const container = document.getElementById('fxTablesContainer');
-        if (!container) return;
-
-        if (fxCache.length === 0) {
-            container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:1rem;">No FX rates saved yet. Use the + Add FX Month button above to add one.</div>';
-            return;
-        }
-
-        const groups = {
-            PH: { rows: fxCache.filter(r => !r.market || r.market === 'PH'), label: '🇵🇭 Philippines Rates', subLabel: 'PHP → other currencies', color: '#1e40af' },
-            CO: { rows: fxCache.filter(r => r.market === 'CO'), label: '🌎 Colombia Rates',    subLabel: 'COP → other currencies',  color: '#065f46' },
-            IN: { rows: fxCache.filter(r => r.market === 'IN'), label: '🇮🇳 India Rates',      subLabel: '1 INR = X foreign currency',  color: '#b45309' },
-            KE: { rows: fxCache.filter(r => r.market === 'KE'), label: '🇰🇪 Kenya Rates',      subLabel: '1 KES = X foreign currency',  color: '#7c3aed' },
-        };
-
-        const COL_COLORS = ['#7c3aed','#059669','#dc2626','#db2777','#d97706','#2563eb','#0891b2','#ea580c','#16a34a'];
-        const COL_DEFS = {
-            PH: [{h:'PHP',sub:'PHP→AUD'},{h:'USD',sub:'PHP→USD'},{h:'GBP',sub:'PHP→GBP'},{h:'EUR',sub:'PHP→EUR'},{h:'HKD',sub:'PHP→HKD'},{h:'SGD',sub:'PHP→SGD'},{h:'CAD',sub:'PHP→CAD'},{h:'NZD',sub:'PHP→NZD'},{h:'INR',sub:'PHP→INR'}],
-            CO: [{h:'USD',sub:'COP→USD'},{h:'AUD',sub:'COP→AUD'},{h:'GBP',sub:'COP→GBP'},{h:'EUR',sub:'COP→EUR'},{h:'HKD',sub:'COP→HKD'},{h:'SGD',sub:'COP→SGD'},{h:'CAD',sub:'COP→CAD'},{h:'NZD',sub:'COP→NZD'},{h:'PHP',sub:'COP→PHP'}],
-            IN: [{h:'PHP',sub:'INR→PHP'},{h:'AUD',sub:'INR→AUD'},{h:'GBP',sub:'INR→GBP'},{h:'USD',sub:'INR→USD'},{h:'HKD',sub:'INR→HKD'},{h:'SGD',sub:'INR→SGD'},{h:'CAD',sub:'INR→CAD'},{h:'EUR',sub:'INR→EUR'},{h:'NZD',sub:'INR→NZD'}],
-            KE: [{h:'AUD',sub:'KES→AUD'},{h:'USD',sub:'KES→USD'},{h:'HKD',sub:'KES→HKD'},{h:'SGD',sub:'KES→SGD'},{h:'GBP',sub:'KES→GBP'},{h:'CAD',sub:'KES→CAD'},{h:'EUR',sub:'KES→EUR'},{h:'NZD',sub:'KES→NZD'},{h:'—',sub:''}],
-        };
-        const COL_KEYS = {
-            PH: ['php','usd','gbp','eur','hkd','sgd','cad','nzd','inr'],
-            CO: ['cop_usd','cop_aud','cop_gbp','cop_eur','cop_hkd','cop_sgd','cop_cad','cop_nzd','cop_php'],
-            IN: ['inr_php','inr_aud','inr_gbp','inr_usd','inr_hkd','inr_sgd','inr_cad','inr_eur','inr_nzd'],
-            KE: ['kes_aud','kes_usd','kes_hkd','kes_sgd','kes_gbp','kes_cad','kes_eur','kes_nzd',null],
-        };
-
-        let html = '';
-        ['PH','CO','IN','KE'].forEach(mkt => {
-            const g = groups[mkt];
-            const cols = COL_DEFS[mkt];
-            const keys = COL_KEYS[mkt];
-
-            // Section header with Add button OUTSIDE the table
-            html += `<div style="display:flex;justify-content:space-between;align-items:center;background:${g.color};color:#fff;padding:0.5rem 0.75rem;border-radius:6px 6px 0 0;margin-top:1.5rem;">
-                <div>
-                    <span style="font-weight:700;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;">${g.label}</span>
-                    <span style="font-size:0.72rem;opacity:0.8;margin-left:0.5rem;">${g.subLabel}</span>
-                </div>
-            </div>`;
-
-            if (!g.rows.length) {
-                html += `<div style="text-align:center;color:var(--text-muted);padding:1rem;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 6px 6px;">No ${g.label.replace(/[^ ]+ /,'')} data yet.</div>`;
-                return;
-            }
-
-            // Column header row
-            const thCells = cols.map((c,i) => c.h === '—'
-                ? `<th style="background:#e2e8f0;color:#94a3b8;text-align:center;font-size:0.68rem;padding:0.3rem 0.4rem;">—</th>`
-                : `<th style="background:${COL_COLORS[i]};color:#fff;text-align:center;font-size:0.68rem;padding:0.3rem 0.4rem;">${c.h}<br><span style="opacity:0.8;font-weight:400;">${c.sub}</span></th>`
-            ).join('');
-
-            // Data rows
-            const dataRows = g.rows.map(item => {
-                const cells = keys.map(k => {
-                    if (!k) return `<td style="text-align:center;color:#94a3b8;">—</td>`;
-                    const v = parseFloat(item[k]);
-                    return `<td style="text-align:center;font-family:'Space Mono',monospace;font-size:0.78rem;">${isNaN(v) || v === 0 ? '<span style="color:#94a3b8;">—</span>' : v.toFixed(4)}</td>`;
-                }).join('');
-                return `<tr>
-                    <td><strong style="font-size:0.82rem;">${item.month_name || item.month_date}</strong><div style="font-size:0.68rem;color:var(--text-muted);">${item.month_date}</div></td>
-                    ${cells}
-                    <td class="actions">
-                        <button class="btn btn-secondary btn-sm" onclick="editFXRate(${item.id})">Edit</button>
-                        <button class="btn btn-danger btn-sm" data-id="${item.id}" data-name="${(item.month_name||item.month_date).replace(/"/g,'&quot;')}" onclick="deleteFXMonthById(this)">Delete</button>
-                    </td>
-                </tr>`;
-            }).join('');
-
-            html += `<div class="table-scroll-wrapper" style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 6px 6px;margin-bottom:0;">
-                <table class="data-table" style="margin-bottom:0;">
-                    <thead><tr><th style="font-size:0.78rem;">Month</th>${thCells}<th>Actions</th></tr></thead>
-                    <tbody>${dataRows}</tbody>
-                </table>
-            </div>`;
-        });
-
-        container.innerHTML = html;
-
+        renderFXTable(fxActiveMarket);
     } catch (err) {
         console.error('Error loading FX rates:', err);
         const statusEl = document.getElementById('fxStatus');
         if (statusEl) statusEl.innerHTML = `<div class="status-message error">Error loading FX rates: ${err.message}</div>`;
     }
+}
+
+function renderFXTable(market) {
+    const container = document.getElementById('fxTablesContainer');
+    if (!container) return;
+
+    const COL_COLORS = ['#7c3aed','#059669','#dc2626','#db2777','#d97706','#2563eb','#0891b2','#ea580c','#16a34a'];
+    const COL_DEFS = {
+        PH: [{h:'PHP',sub:'PHP→AUD'},{h:'USD',sub:'PHP→USD'},{h:'GBP',sub:'PHP→GBP'},{h:'EUR',sub:'PHP→EUR'},{h:'HKD',sub:'PHP→HKD'},{h:'SGD',sub:'PHP→SGD'},{h:'CAD',sub:'PHP→CAD'},{h:'NZD',sub:'PHP→NZD'},{h:'INR',sub:'PHP→INR'}],
+        CO: [{h:'USD',sub:'COP→USD'},{h:'AUD',sub:'COP→AUD'},{h:'GBP',sub:'COP→GBP'},{h:'EUR',sub:'COP→EUR'},{h:'HKD',sub:'COP→HKD'},{h:'SGD',sub:'COP→SGD'},{h:'CAD',sub:'COP→CAD'},{h:'NZD',sub:'COP→NZD'},{h:'PHP',sub:'COP→PHP'}],
+        IN: [{h:'PHP',sub:'INR→PHP'},{h:'AUD',sub:'INR→AUD'},{h:'GBP',sub:'INR→GBP'},{h:'USD',sub:'INR→USD'},{h:'HKD',sub:'INR→HKD'},{h:'SGD',sub:'INR→SGD'},{h:'CAD',sub:'INR→CAD'},{h:'EUR',sub:'INR→EUR'},{h:'NZD',sub:'INR→NZD'}],
+        KE: [{h:'AUD',sub:'KES→AUD'},{h:'USD',sub:'KES→USD'},{h:'HKD',sub:'KES→HKD'},{h:'SGD',sub:'KES→SGD'},{h:'GBP',sub:'KES→GBP'},{h:'CAD',sub:'KES→CAD'},{h:'EUR',sub:'KES→EUR'},{h:'NZD',sub:'KES→NZD'},{h:'—',sub:''}],
+    };
+    const COL_KEYS = {
+        PH: ['php','usd','gbp','eur','hkd','sgd','cad','nzd','inr'],
+        CO: ['cop_usd','cop_aud','cop_gbp','cop_eur','cop_hkd','cop_sgd','cop_cad','cop_nzd','cop_php'],
+        IN: ['inr_php','inr_aud','inr_gbp','inr_usd','inr_hkd','inr_sgd','inr_cad','inr_eur','inr_nzd'],
+        KE: ['kes_aud','kes_usd','kes_hkd','kes_sgd','kes_gbp','kes_cad','kes_eur','kes_nzd',null],
+    };
+
+    const rows = fxCache.filter(r => (!r.market || r.market === 'PH') ? market === 'PH' : r.market === market);
+    const cols = COL_DEFS[market];
+    const keys = COL_KEYS[market];
+
+    if (!rows.length) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:2rem;">No FX rates saved yet for this market. Use the + Add FX Month button to add one.</div>';
+        return;
+    }
+
+    const thCells = cols.map((c, i) => c.h === '—'
+        ? `<th style="background:#e2e8f0;color:#94a3b8;text-align:center;font-size:0.68rem;padding:0.3rem 0.4rem;">—</th>`
+        : `<th style="background:${COL_COLORS[i]};color:#fff;text-align:center;font-size:0.68rem;padding:0.3rem 0.4rem;">${c.h}<br><span style="opacity:0.8;font-weight:400;">${c.sub}</span></th>`
+    ).join('');
+
+    const dataRows = rows.map(item => {
+        const cells = keys.map(k => {
+            if (!k) return `<td style="text-align:center;color:#94a3b8;">—</td>`;
+            const v = parseFloat(item[k]);
+            return `<td style="text-align:center;font-family:'Space Mono',monospace;font-size:0.78rem;">${isNaN(v) || v === 0 ? '<span style="color:#94a3b8;">—</span>' : v.toFixed(4)}</td>`;
+        }).join('');
+        return `<tr>
+            <td><strong style="font-size:0.82rem;">${item.month_name || item.month_date}</strong><div style="font-size:0.68rem;color:var(--text-muted);">${item.month_date}</div></td>
+            ${cells}
+            <td class="actions">
+                <button class="btn btn-secondary btn-sm" onclick="editFXRate(${item.id})">Edit</button>
+                <button class="btn btn-danger btn-sm" data-id="${item.id}" data-name="${(item.month_name||item.month_date).replace(/"/g,'&quot;')}" onclick="deleteFXMonthById(this)">Delete</button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    container.innerHTML = `<div class="table-scroll-wrapper">
+        <table class="data-table" style="margin-bottom:0;">
+            <thead><tr><th style="font-size:0.78rem;">Month</th>${thCells}<th>Actions</th></tr></thead>
+            <tbody>${dataRows}</tbody>
+        </table>
+    </div>`;
 }
 
 const FX_MARKET_CONFIG = {
