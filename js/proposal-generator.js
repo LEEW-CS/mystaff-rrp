@@ -505,13 +505,62 @@ async function insertLogo(zip, logoBase64DataUrl) {
             `<p:spPr><a:xfrm><a:off x="${lx}" y="${ly}"/><a:ext cx="${lw}" cy="${lh}"/></a:xfrm>` +
             `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
 
-        // Patch slide1 (may already be updated by patch() above — read fresh from zip)
+        // ── Large logo: bottom-centre of slide 1 ─────────────────────────────
         const s1File = zip.file('ppt/slides/slide1.xml');
         if (s1File) {
             let sxml = await s1File.async('string');
             sxml = sxml.replace('</p:spTree>', picXml + '</p:spTree>');
             zip.file('ppt/slides/slide1.xml', sxml);
         }
+
+        // ── Small logo: top-left of ALL 18 slides ─────────────────────────
+        // Mirrors the Cloudstaff logo at top-right (x=9.218" y=0.299" w=0.471" h=0.471").
+        // Client logo: x=0.15" y=0.20" max_w=1.5" max_h=0.47" (aspect ratio preserved).
+        const smallMaxW = Math.round(1.5 * 914400);
+        const smallMaxH = Math.round(0.47 * 914400);
+        let slw, slh;
+        if (aspect >= smallMaxW / smallMaxH) {
+            slw = smallMaxW;
+            slh = Math.round(smallMaxW / aspect);
+        } else {
+            slh = smallMaxH;
+            slw = Math.round(smallMaxH * aspect);
+        }
+        const slx = Math.round(0.15 * 914400);
+        const sly = Math.round(0.20 * 914400);
+
+        const smallPicXml =
+            `<p:pic xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+            `<p:nvPicPr><p:cNvPr id="9003" name="ClientLogoSmall"/>` +
+            `<p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>` +
+            `<p:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>` +
+            `<p:spPr><a:xfrm><a:off x="${slx}" y="${sly}"/><a:ext cx="${slw}" cy="${slh}"/></a:xfrm>` +
+            `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
+
+        for (let sn = 1; sn <= 18; sn++) {
+            const sPath = `ppt/slides/slide${sn}.xml`;
+            const sFile = zip.file(sPath);
+            if (!sFile) continue;
+
+            // Each slide needs its own rels entry pointing to the image
+            const sRelsPath = `ppt/slides/_rels/slide${sn}.xml.rels`;
+            const sRelsFile = zip.file(sRelsPath);
+            let sRels = sRelsFile
+                ? await sRelsFile.async('string')
+                : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+            if (!sRels.includes(rId)) {
+                sRels = sRels.replace('</Relationships>',
+                    `  <Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/clientLogo.${ext}"/>\n</Relationships>`);
+                zip.file(sRelsPath, sRels);
+            }
+
+            let sxml = await sFile.async('string');
+            // Give each instance a unique shape id to avoid collisions
+            const slidePic = smallPicXml.replace('id="9003"', `id="${9000 + sn}"`);
+            sxml = sxml.replace('</p:spTree>', slidePic + '</p:spTree>');
+            zip.file(sPath, sxml);
+        }
+
     } catch (e) {
         console.warn('Logo insertion failed (non-fatal):', e);
     }
