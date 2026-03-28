@@ -37,6 +37,7 @@ function showProposalModal(quoteId) {
 
     document.getElementById('proposalClientFirstName').value = '';
     document.getElementById('proposalClientCompany').value   = '';
+    clearProposalLogo();
     const errEl = document.getElementById('proposalError');
     if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
 
@@ -51,6 +52,33 @@ function hideProposalModal() {
 
 function esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Logo upload ───────────────────────────────────────
+let proposalLogoBase64 = null;
+
+function handleProposalLogoUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        proposalLogoBase64 = e.target.result;
+        const img  = document.getElementById('proposalLogoImg');
+        const prev = document.getElementById('proposalLogoPreview');
+        if (img)  img.src = proposalLogoBase64;
+        if (prev) prev.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearProposalLogo() {
+    proposalLogoBase64 = null;
+    const img   = document.getElementById('proposalLogoImg');
+    const prev  = document.getElementById('proposalLogoPreview');
+    const input = document.getElementById('proposalLogoInput');
+    if (img)   img.src = '';
+    if (prev)  prev.style.display = 'none';
+    if (input) input.value = '';
 }
 
 // ── Helpers ───────────────────────────────────────────
@@ -191,6 +219,7 @@ async function generateProposal() {
             repName, repTitle, repEmail, repPhone,
             roleName, roleLevel, currency,
             edcAmt, mpcAmt, mpcName, mgmtFee, setupFee, total,
+            logoBase64: proposalLogoBase64,
             quoteNumber: String(quote.quote_number || 'Draft'),
         });
         hideProposalModal();
@@ -374,6 +403,11 @@ async function buildProposalFromTemplate(d) {
         return xml;
     });
 
+    // ── Optional: client logo on slide 1 ─────────────────
+    if (d.logoBase64) {
+        await insertLogo(zip, d.logoBase64);
+    }
+
     // ── Download ──────────────────────────────────────────
     // Do NOT force compression — preserves original per-entry type (STORE for fonts etc).
     // Forcing DEFLATE here would try to re-deflate already-STORED binary font files → corruption.
@@ -396,3 +430,89 @@ async function patch(zip, path, fn) {
     zip.file(path, fn(await file.async('string')));
 }
 
+// ── Logo insertion ────────────────────────────────────────────────────────
+// Inserts client logo centered in bottom strip of slide 1.
+// Reads actual pixel dimensions via <img> so bounding box matches aspect ratio exactly —
+// this is the only way to prevent PowerPoint from squishing the logo.
+// Max 2.5" wide x 1.0" tall, horizontally centered on 10" slide.
+
+async function insertLogo(zip, logoBase64DataUrl) {
+    try {
+        const mimeMatch = logoBase64DataUrl.match(/data:(image\/([a-z+]+));base64,/);
+        if (!mimeMatch) return;
+        const mime = mimeMatch[1];
+        const ext  = { 'image/png':'png', 'image/jpeg':'jpg', 'image/jpg':'jpg', 'image/svg+xml':'svg' }[mime] || 'png';
+        const b64  = logoBase64DataUrl.split(',')[1];
+
+        // Store image bytes in zip
+        const binary = atob(b64);
+        const bytes  = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        zip.file(`ppt/media/clientLogo.${ext}`, bytes);
+
+        // Register in [Content_Types].xml
+        const ctFile = zip.file('[Content_Types].xml');
+        if (ctFile) {
+            let ct = await ctFile.async('string');
+            const partName = `/ppt/media/clientLogo.${ext}`;
+            if (!ct.includes(partName)) {
+                ct = ct.replace('</Types>', `  <Override PartName="${partName}" ContentType="${mime}"/>\n</Types>`);
+                zip.file('[Content_Types].xml', ct);
+            }
+        }
+
+        // Add relationship to slide1.xml.rels
+        const relsPath = 'ppt/slides/_rels/slide1.xml.rels';
+        const relsFile = zip.file(relsPath);
+        let rels = relsFile
+            ? await relsFile.async('string')
+            : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+        const rId = 'rId_clientLogo';
+        if (!rels.includes(rId)) {
+            rels = rels.replace('</Relationships>',
+                `  <Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/clientLogo.${ext}"/>\n</Relationships>`);
+            zip.file(relsPath, rels);
+        }
+
+        // Read actual pixel dimensions to size the bounding box correctly
+        const imgDims = await new Promise(resolve => {
+            const img = new Image();
+            img.onload  = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+            img.onerror = () => resolve({ w: 200, h: 100 });
+            img.src = logoBase64DataUrl;
+        });
+
+        const EMU    = 914400;
+        const maxW   = Math.round(2.5 * EMU);
+        const maxH   = Math.round(1.0 * EMU);
+        const aspect = imgDims.w / imgDims.h;
+        let lw, lh;
+        if (aspect >= maxW / maxH) {
+            lw = maxW;
+            lh = Math.round(maxW / aspect);
+        } else {
+            lh = maxH;
+            lw = Math.round(maxH * aspect);
+        }
+        const lx = Math.round((9144000 - lw) / 2);  // horizontally centred
+        const ly = Math.round(4.35 * EMU);            // 4.35" — bottom strip
+
+        const picXml =
+            `<p:pic xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+            `<p:nvPicPr><p:cNvPr id="9001" name="ClientLogo"/>` +
+            `<p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>` +
+            `<p:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>` +
+            `<p:spPr><a:xfrm><a:off x="${lx}" y="${ly}"/><a:ext cx="${lw}" cy="${lh}"/></a:xfrm>` +
+            `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
+
+        // Patch slide1 (may already be updated by patch() above — read fresh from zip)
+        const s1File = zip.file('ppt/slides/slide1.xml');
+        if (s1File) {
+            let sxml = await s1File.async('string');
+            sxml = sxml.replace('</p:spTree>', picXml + '</p:spTree>');
+            zip.file('ppt/slides/slide1.xml', sxml);
+        }
+    } catch (e) {
+        console.warn('Logo insertion failed (non-fatal):', e);
+    }
+}
