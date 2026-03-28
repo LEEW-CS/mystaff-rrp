@@ -663,7 +663,15 @@ async function saveQuoteCO() {
         fx_month_id: parseInt(document.getElementById('coExchangeRateDate').value) || null,
         hardware_id: parseInt(document.getElementById('coMpcHardware').value) || null,
         night_meal_id: parseInt(document.getElementById('coNightMealsProduct').value) || null,
-        total_monthly: document.getElementById('coResultTotalMonthly').textContent,
+        edc_amount:       parseFloat(document.getElementById('coResultEDC').textContent.replace(/[^0-9.-]/g,'')) || null,
+        edc_amount_to:    (() => { const t = document.getElementById('coResultEDC').textContent; const m = t.match(/[\d,]+\.?\d*/g); return m && m.length > 1 ? parseFloat(m[m.length-1].replace(/,/g,'')) : null; })(),
+        mpc_amount:       parseFloat(document.getElementById('coResultMPC').textContent.replace(/[^0-9.-]/g,'')) || null,
+        mpc_name:         (() => { const s = document.getElementById('coMpcHardware'); return s && s.selectedIndex >= 0 ? s.options[s.selectedIndex].text : null; })(),
+        mgmt_fee_amount:  parseFloat(document.getElementById('coResultCSFee').textContent.replace(/[^0-9.-]/g,'')) || null,
+        setup_fee_amount: parseFloat(document.getElementById('coResultSetup').textContent.replace(/[^0-9.-]/g,'')) || null,
+        total_monthly:    document.getElementById('coResultTotalMonthly').textContent,
+        total_monthly_to: (() => { const t = document.getElementById('coResultTotalMonthly').textContent; const m = t.match(/[\d,]+\.?\d*/g); return m && m.length > 1 ? parseFloat(m[m.length-1].replace(/,/g,'')) : null; })(),
+        years_experience: null,   // CO calc does not capture years experience
         created_by: currentUser ? (currentUser.name || currentUser.email || 'Unknown') : 'Unknown',
     };
 
