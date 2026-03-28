@@ -152,6 +152,10 @@
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" /></svg>
                 <span class="nav-item-label">Night Meals</span>
             </div>
+            <div class="nav-item admin-only" data-page="salary-research" data-label="Salary Research">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <span class="nav-item-label">Salary Research</span>
+            </div>
         </div>
         <div class="sidebar-footer">
             <div style="font-size:0.6rem;color:rgba(255,255,255,0.35);font-family:'Space Mono',monospace;text-align:center;padding:0 0.75rem 0.25rem;" id="sidebarVersionStamp"></div>
@@ -1266,6 +1270,198 @@
 
     </div>
 
+        <!-- ============================================================ -->
+        <!-- SALARY RESEARCH PAGE (Admin Only)                            -->
+        <!-- ============================================================ -->
+        <div class="page" id="page-salary-research">
+            <div class="page-header">
+                <h1>🔍 Salary Research</h1>
+                <p>Run AI-powered salary benchmarking across 6 markets — results saved to Supabase</p>
+            </div>
+
+            <!-- API Key Status Bar -->
+            <div class="card" style="padding:0.75rem 1rem;margin-bottom:1rem;">
+                <div id="srApiKeySection"></div>
+            </div>
+
+            <!-- Tab Buttons -->
+            <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+                <button id="srTabBtn-run" class="btn btn-primary btn-sm sr-tab-btn" onclick="srSwitchTab('run')" style="font-size:0.8rem;">▶ Run Research</button>
+                <button id="srTabBtn-browser" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('browser')" style="font-size:0.8rem;">📊 Results Browser</button>
+                <button id="srTabBtn-export" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('export')" style="font-size:0.8rem;">⬇ Export</button>
+                <button id="srTabBtn-history" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('history')" style="font-size:0.8rem;">📋 Run History</button>
+            </div>
+
+            <!-- ── TAB: RUN ── -->
+            <div id="srTab-run" class="sr-tab-panel">
+                <!-- Market selector -->
+                <div class="card" style="margin-bottom:1rem;">
+                    <div class="card-title" style="margin-bottom:0.75rem;">1 · Select Market</div>
+                    <div id="srMarketTabs" style="display:flex;flex-wrap:wrap;gap:0.4rem;"></div>
+                </div>
+
+                <!-- Batch selector -->
+                <div class="card" style="margin-bottom:1rem;">
+                    <div class="card-title" style="margin-bottom:0.75rem;">2 · Select Batches</div>
+                    <div id="srBatchSelector"></div>
+                </div>
+
+                <!-- Run summary + action -->
+                <div class="card" style="margin-bottom:1rem;">
+                    <div class="card-title" style="margin-bottom:0.75rem;">3 · Run</div>
+                    <div id="srRunSummary" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;"></div>
+                    <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+                        <button id="srRunBtn" class="btn btn-primary" onclick="srStartResearch()" style="font-size:0.85rem;">
+                            ▶ Start Research Run
+                        </button>
+                        <button id="srAbortBtn" class="btn btn-secondary" onclick="srAbortResearch()" style="display:none;font-size:0.85rem;background:#ef4444;color:#fff;border-color:#ef4444;">
+                            ⛔ Abort
+                        </button>
+                    </div>
+                    <!-- Progress -->
+                    <div id="srProgressWrap" style="display:none;margin-top:1rem;">
+                        <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;margin-bottom:0.4rem;">
+                            <div id="srProgressBar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;border-radius:4px;"></div>
+                        </div>
+                        <div id="srProgressLabel" style="font-size:0.75rem;color:var(--text-muted);font-family:'Space Mono',monospace;"></div>
+                    </div>
+                    <!-- Log -->
+                    <div id="srLogWrap" style="display:none;margin-top:1rem;">
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.3rem;font-weight:600;">RUN LOG</div>
+                        <div id="srLogLines" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.75rem;max-height:260px;overflow-y:auto;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── TAB: BROWSER ── -->
+            <div id="srTab-browser" class="sr-tab-panel" style="display:none;">
+                <div class="card">
+                    <!-- Filters -->
+                    <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+                        <select id="srBrowserMarket" class="form-select" style="font-size:0.8rem;width:auto;" onchange="srLoadResultsBrowser()">
+                            <option value="PH">🇵🇭 Philippines</option>
+                            <option value="CO">🇨🇴 Colombia</option>
+                            <option value="IN">🇮🇳 India</option>
+                            <option value="KE">🇰🇪 Kenya</option>
+                            <option value="AU">🇦🇺 Australia</option>
+                            <option value="USA">🇺🇸 USA</option>
+                        </select>
+                        <select id="srBrowserCategory" class="form-select" style="font-size:0.8rem;width:auto;" onchange="srLoadResultsBrowser()">
+                            <option value="">All Categories</option>
+                        </select>
+                        <select id="srBrowserConf" class="form-select" style="font-size:0.8rem;width:auto;" onchange="srLoadResultsBrowser()">
+                            <option value="">All Confidence</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                        <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+                            <input type="checkbox" id="srBrowserStale" onchange="srLoadResultsBrowser()"> Stale only (&gt;7 days)
+                        </label>
+                        <span id="srBrowserStatus" style="font-size:0.75rem;color:var(--text-muted);margin-left:auto;"></span>
+                    </div>
+                    <!-- Table -->
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;font-size:0.73rem;">
+                            <thead>
+                                <tr style="background:var(--surface);font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;">
+                                    <th style="padding:0.5rem;text-align:left;">JPID</th>
+                                    <th style="padding:0.5rem;text-align:left;">Job Title</th>
+                                    <th style="padding:0.5rem;text-align:left;">Category</th>
+                                    <th style="padding:0.5rem;text-align:left;">Exp</th>
+                                    <th style="padding:0.5rem;text-align:right;">Low</th>
+                                    <th style="padding:0.5rem;text-align:right;">Median</th>
+                                    <th style="padding:0.5rem;text-align:right;">High</th>
+                                    <th style="padding:0.5rem;text-align:center;">Conf</th>
+                                    <th style="padding:0.5rem;text-align:left;">Age</th>
+                                    <th style="padding:0.5rem;text-align:left;">Run ID</th>
+                                </tr>
+                            </thead>
+                            <tbody id="srBrowserBody">
+                                <tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-muted);">Click browser tab to load results.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── TAB: EXPORT ── -->
+            <div id="srTab-export" class="sr-tab-panel" style="display:none;">
+                <div class="card">
+                    <div class="card-title">Export Salary Research Data</div>
+                    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem;line-height:1.6;">
+                        Downloads a CSV file containing all current research results across all 6 markets, 
+                        matching the layout of your Master Salary Research spreadsheet.
+                        Archived (previous run) data is excluded — current results only.
+                    </p>
+                    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:1.25rem;font-size:0.8rem;">
+                        <div style="font-weight:600;margin-bottom:0.5rem;">Export includes:</div>
+                        <div style="color:var(--text-muted);line-height:1.8;">
+                            ✓ All 1,897 roles from salary_ranges (JPID, category, job title)<br>
+                            ✓ Current research results for each market (PH, CO, IN, KE, AU, USA)<br>
+                            ✓ Years experience, Low/Median/High salary, Confidence scores<br>
+                            ✓ Empty cells where research has not yet been run for a market
+                        </div>
+                    </div>
+                    <button id="srExportBtn" class="btn btn-primary" onclick="srExportXLSX()" style="font-size:0.85rem;">
+                        ⬇ Download CSV Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── TAB: HISTORY ── -->
+            <div id="srTab-history" class="sr-tab-panel" style="display:none;">
+                <div class="card">
+                    <div class="card-title" style="margin-bottom:1rem;">Research Run History</div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;font-size:0.73rem;">
+                            <thead>
+                                <tr style="background:var(--surface);font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;">
+                                    <th style="padding:0.5rem;text-align:left;">Run ID</th>
+                                    <th style="padding:0.5rem;text-align:left;">Market</th>
+                                    <th style="padding:0.5rem;text-align:left;">Date</th>
+                                    <th style="padding:0.5rem;text-align:left;">Current</th>
+                                    <th style="padding:0.5rem;text-align:left;">Archived</th>
+                                </tr>
+                            </thead>
+                            <tbody id="srHistoryBody">
+                                <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Click History tab to load.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /page-salary-research -->
+
+    <!-- Salary Research — API Key Modal -->
+    <div class="modal-overlay" id="srApiKeyModal">
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <h2>🔑 Anthropic API Key</h2>
+                <button class="modal-close" onclick="hideModal('srApiKeyModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.6;">
+                    Your API key is stored in this browser session only — it is never saved to the database.
+                    You will need to re-enter it after closing or refreshing the browser.
+                </p>
+                <div class="form-group">
+                    <label class="form-label">Anthropic API Key</label>
+                    <input type="password" id="srApiKeyInput" class="form-input"
+                        placeholder="sk-ant-api03-..." autocomplete="off">
+                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem;">
+                        Find your key at console.anthropic.com → API Keys
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('srApiKeyModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="srSaveApiKey()">Save Key</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Price Book Modal -->
     <div class="modal-overlay" id="editPBModal">
         <div class="modal" style="max-width:620px;">
@@ -2358,6 +2554,7 @@
     <script src="js/admin-hmo.js"></script>
     <script src="js/admin-night-meals.js"></script>
     <script src="js/proposal-generator.js"></script>
+    <script src="js/salary-research.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
