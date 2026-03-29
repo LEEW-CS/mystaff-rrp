@@ -735,19 +735,27 @@ async function srLoadResultsBrowser() {
     tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);">Loading…</td></tr>';
 
     try {
-        let query = supabaseClient
-            .from('salary_research')
-            .select('*')
-            .eq('market', marketFilter)
-            .eq('is_current', true)
-            .order('jpid_level', { ascending: true })
-            .limit(2000);
+        // Paginate — PostgREST has a 1,000-row default cap
+        let allData = [], offset = 0;
+        while (true) {
+            let query = supabaseClient
+                .from('salary_research')
+                .select('*')
+                .eq('market', marketFilter)
+                .eq('is_current', true)
+                .order('jpid_level', { ascending: true })
+                .range(offset, offset + 999);
 
-        if (catFilter) query = query.eq('category', catFilter);
-        if (confFilter) query = query.eq('conf_median', confFilter);
+            if (catFilter) query = query.eq('category', catFilter);
+            if (confFilter) query = query.eq('conf_median', confFilter);
 
-        const { data, error } = await query;
-        if (error) throw error;
+            const { data, error } = await query;
+            if (error) throw error;
+            allData = allData.concat(data || []);
+            if (!data || data.length < 1000) break;
+            offset += 1000;
+        }
+        const data = allData;
 
         let rows = data || [];
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -801,14 +809,18 @@ async function srLoadResultsBrowser() {
 
 function srPopulateBrowserCategories(rows) {
     const sel = document.getElementById('srBrowserCategory');
-    if (!sel || sel.dataset.populated) return;
+    if (!sel) return;
+    const currentVal = sel.value;
+    // Rebuild from scratch each time so new categories from fresh runs appear
+    while (sel.options.length > 1) sel.remove(1);  // keep the first "All categories" option
     const cats = [...new Set(rows.map(r => r.category).filter(Boolean))].sort();
     cats.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c; opt.textContent = c;
         sel.appendChild(opt);
     });
-    sel.dataset.populated = '1';
+    // Restore previous selection if it still exists
+    if (currentVal) sel.value = currentVal;
 }
 
 // ── Export Tab ──────────────────────────────────────
