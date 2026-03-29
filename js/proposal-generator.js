@@ -211,7 +211,18 @@ async function generateProposal() {
 
         const mpcAmt   = quote.mpc_amount        != null ? sym + fmtAmt(quote.mpc_amount)        : '—';
         const mpcName  = quote.mpc_name          || 'CS Power 7 Laptop';
-        const mgmtFee  = quote.mgmt_fee_amount   != null ? sym + fmtAmt(quote.mgmt_fee_amount)   : '—';
+        // mgmt_fee_amount may be null on quotes saved before that field was added.
+        // Fall back to pbCache lookup (same source the calculators use) so the
+        // template placeholder $770.00 is always replaced with the correct value.
+        let mgmtFee;
+        if (quote.mgmt_fee_amount != null) {
+            mgmtFee = sym + fmtAmt(quote.mgmt_fee_amount);
+        } else {
+            const pb = (typeof pbCache !== 'undefined' && pbCache[quote.price_book])
+                     || (typeof PRICE_BOOKS !== 'undefined' && PRICE_BOOKS[quote.price_book]);
+            const pbFee = pb ? (pb[currency] || 0) : 0;
+            mgmtFee = pbFee > 0 ? sym + fmtAmt(pbFee) : '—';
+        }
         const setupFee = quote.setup_fee_amount  != null ? sym + fmtAmt(quote.setup_fee_amount)  : sym + '399.00';
 
         await buildProposalFromTemplate({

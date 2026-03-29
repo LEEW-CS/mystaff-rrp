@@ -734,12 +734,14 @@ async function saveQuoteCO() {
     // Get EDC from DOM result spans (already computed by calculateCO)
     // Parse "A$1,234.56 to A$2,345.67" or "A$1,234.56" → extract first number
     const parseResultNum = (id) => {
-        const text = (document.getElementById(id)?.textContent || '').replace(/[^0-9.]/g, ' ').trim();
+        // Strip commas first (e.g. 1,234.56 → 1234.56) THEN strip other non-numeric chars.
+        // Without this, "US$1,234.56" becomes "1 234 56" and nums[0] = 1 (wrong).
+        const text = (document.getElementById(id)?.textContent || '').replace(/,/g, '').replace(/[^0-9.]/g, ' ').trim();
         const nums = text.split(/\s+/).filter(Boolean).map(Number).filter(n => !isNaN(n) && n > 0);
         return nums[0] || null;
     };
     const parseResultNumTo = (id) => {
-        const text = (document.getElementById(id)?.textContent || '').replace(/[^0-9.]/g, ' ').trim();
+        const text = (document.getElementById(id)?.textContent || '').replace(/,/g, '').replace(/[^0-9.]/g, ' ').trim();
         const nums = text.split(/\s+/).filter(Boolean).map(Number).filter(n => !isNaN(n) && n > 0);
         return nums.length > 1 ? nums[nums.length - 1] : nums[0] || null;
     };
