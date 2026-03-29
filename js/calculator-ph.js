@@ -904,6 +904,8 @@ function saveQuoteRouter() {
     const market = modal.getAttribute('data-market');
     if (market === 'CO') {
         saveQuoteCO();
+    } else if (market === 'IN') {
+        saveQuoteIN();
     } else {
         saveQuote();
     }

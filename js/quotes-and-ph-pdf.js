@@ -45,8 +45,10 @@ function renderQuotesTable(quotes) {
         const mkt = q.market || 'PH';
         const mktBadge = mkt === 'CO'
             ? '<span style="display:inline-block;background:#065f46;color:#fff;font-size:0.6rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;margin-left:0.3rem;">CO</span>'
+            : mkt === 'IN'
+            ? '<span style="display:inline-block;background:#b45309;color:#fff;font-size:0.6rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;margin-left:0.3rem;">IN</span>'
             : '<span style="display:inline-block;background:#1e40af;color:#fff;font-size:0.6rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;margin-left:0.3rem;">PH</span>';
-        const loadFn = mkt === 'CO' ? 'loadQuoteIntoCalcCO' : 'loadQuoteIntoCalc';
+        const loadFn = mkt === 'CO' ? 'loadQuoteIntoCalcCO' : mkt === 'IN' ? 'loadQuoteIntoCalcIN' : 'loadQuoteIntoCalc';
         return `<tr style="font-size:0.73rem;vertical-align:top;">
             <td style="font-family:'Space Mono',monospace;font-weight:600;color:var(--accent);white-space:nowrap;width:90px;">${q.quote_number || 'N/A'}${mktBadge}</td>
             <td style="width:200px;overflow:hidden;"><strong style="font-size:0.73rem;display:block;">${q.quote_name || '--'}</strong>${q.description ? `<span style="font-size:0.67rem;color:var(--text-muted);font-weight:400;">${q.description}</span>` : ''}</td>

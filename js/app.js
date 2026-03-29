@@ -1,7 +1,7 @@
 // =====================================================
 // BUILD VERSION
 // =====================================================
-const APP_VERSION = 'v13 r35 modular';
+const APP_VERSION = 'v13 r36 modular';
 const APP_BUILD   = '2026-03-29';
 
 (function setVersionStamps() {
@@ -129,6 +129,19 @@ document.querySelectorAll('.nav-item').forEach(item => {
             // Render immediately with defaults, then load live data
             calculateCO();
             if (!coFXData.length) initCalculatorCO();
+        }
+
+        // Reset editing state when clicking India Calculator nav
+        if (page === 'calculator-in') {
+            clearEditingBannerIN();
+            const saveBtn = document.getElementById('inSaveQuoteBtn');
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = '1'; saveBtn.style.cursor = 'pointer'; saveBtn.title = ''; }
+            // Init on first visit; recalculate on subsequent visits
+            if (!inFXData.length) {
+                initCalculatorIN();
+            } else {
+                calculateIN();
+            }
         }
 
         // Refresh price books editor when navigating to it
