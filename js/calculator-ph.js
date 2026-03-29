@@ -675,6 +675,7 @@ async function onRoleSearch() {
             const { data, error } = await supabaseClient
                 .from('salary_ranges')
                 .select('id, job_title, jpid_level, category, years_experience, low_salary, median_salary, high_salary, conf_low, conf_median, conf_high')
+                .eq('market', 'PH')
                 .ilike('job_title', `%${q}%`)
                 .limit(15);
             if (error) throw error;
@@ -694,7 +695,7 @@ function showRoleDropdown(roles) {
         div.innerHTML = `
             <div class="ro-title">${jpid}${role.job_title}</div>
             <div class="ro-meta">${role.category} · ${role.years_experience || ''}</div>
-            <div class="ro-salary">₱${Number(role.low_salary).toLocaleString()} – ₱${Number(role.median_salary).toLocaleString()} – ₱${Number(role.high_salary).toLocaleString()}</div>
+            <div class="ro-salary">₱${role.low_salary != null ? Number(role.low_salary).toLocaleString() : '—'} – ₱${role.median_salary != null ? Number(role.median_salary).toLocaleString() : '—'} – ₱${role.high_salary != null ? Number(role.high_salary).toLocaleString() : '—'}</div>
         `;
         div.addEventListener('click', () => selectRole(role));
         dd.appendChild(div);
