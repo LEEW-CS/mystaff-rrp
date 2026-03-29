@@ -561,6 +561,7 @@ async function srLoadRoles() {
             const { data, error } = await supabaseClient
                 .from('salary_ranges')
                 .select('id, jpid_level, job_title, category, batch, years_experience')
+                .eq('market', 'PH')   // PH is the master role list — same JPIDs used for all markets
                 .order('jpid_level', { ascending: true })
                 .range(offset, offset + 999);
             if (error) throw error;
@@ -1723,7 +1724,7 @@ async function srLoadPublishTab() {
                     <tr style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--border);">
                         <th style="padding:0.5rem;text-align:left;">Market</th>
                         <th style="padding:0.5rem;text-align:right;">Researched</th>
-                        <th style="padding:0.5rem;text-align:right;">Total Roles</th>
+                        <th style="padding:0.5rem;text-align:right;" title="Total roles in the master job title list (PH baseline)">Master Roles</th>
                         <th style="padding:0.5rem;text-align:right;">Coverage</th>
                         <th style="padding:0.5rem;text-align:left;">Published</th>
                         <th style="padding:0.5rem;text-align:center;">Action</th>
