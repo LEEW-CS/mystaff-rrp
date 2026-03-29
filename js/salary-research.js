@@ -1818,7 +1818,7 @@ async function srPublishMarket(market, isRepublish = false) {
     while (true) {
         const { data, error } = await supabaseClient
             .from('salary_research')
-            .select('jpid_level, job_title, category, batch, years_experience, low_salary, median_salary, high_salary, conf_median')
+            .select('jpid_level, job_title, category, batch, years_experience, low_salary, median_salary, high_salary, conf_experience, conf_low, conf_median, conf_high')
             .eq('market', market)
             .eq('is_current', true)
             .range(offset, offset + 999);
@@ -1864,6 +1864,10 @@ This will replace all existing ${label} salary data in the calculator.`;
             low_salary:       r.low_salary,
             median_salary:    r.median_salary,
             high_salary:      r.high_salary,
+            conf_experience:  r.conf_experience,
+            conf_low:         r.conf_low,
+            conf_median:      r.conf_median,
+            conf_high:        r.conf_high,
         }));
 
         const BATCH = 500;
