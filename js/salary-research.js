@@ -41,6 +41,7 @@ let srRunning        = false;
 let srAbortFlag      = false;
 let srCurrentRunId   = null;
 let srResultsCache   = [];          // last loaded results for browser tab
+let srWakeLock       = null;        // Screen Wake Lock sentinel (prevents browser sleep during runs)
 
 const SR_MARKETS = [
     { code: 'PH',  label: 'Philippines', flag: 'ph', currency: 'PHP' },
@@ -525,6 +526,42 @@ async function srSaveApiKey() {
     }
 }
 
+// ── Wake Lock — prevents browser/screen sleep during long runs ──────
+async function srAcquireWakeLock() {
+    if (!('wakeLock' in navigator)) {
+        srLog('⚠️ Wake Lock API not supported in this browser — tab may sleep during long runs', 'warn');
+        return;
+    }
+    try {
+        srWakeLock = await navigator.wakeLock.request('screen');
+        srLog('🔒 Screen wake lock active — browser will stay awake', 'muted');
+        // If the tab loses visibility and the lock is released automatically, re-acquire when visible again
+        srWakeLock.addEventListener('release', () => {
+            srLog('🔓 Wake lock released', 'muted');
+        });
+        document.addEventListener('visibilitychange', srHandleVisibilityChange);
+    } catch(e) {
+        srLog(`⚠️ Could not acquire wake lock: ${e.message}`, 'warn');
+    }
+}
+
+async function srHandleVisibilityChange() {
+    if (srRunning && document.visibilityState === 'visible' && (!srWakeLock || srWakeLock.released)) {
+        try {
+            srWakeLock = await navigator.wakeLock.request('screen');
+            srLog('🔒 Wake lock re-acquired (tab back in focus)', 'muted');
+        } catch(e) { /* silent — run will continue anyway */ }
+    }
+}
+
+async function srReleaseWakeLock() {
+    document.removeEventListener('visibilitychange', srHandleVisibilityChange);
+    if (srWakeLock && !srWakeLock.released) {
+        await srWakeLock.release();
+        srWakeLock = null;
+    }
+}
+
 // ── Run Research ────────────────────────────────────
 function srRenderRunTab() {
     srUpdateRunSummary();
@@ -565,6 +602,8 @@ async function srStartResearch() {
 
     srLog(`🚀 Starting ${marketInfo.label} research — ${roles.length} roles in ${batches.length} batches (${totalApiCalls} API calls, chunks of ${SR_CHUNK_SIZE})`, 'info');
     srLog(`Run ID: ${runId}`, 'muted');
+
+    await srAcquireWakeLock();
 
     let completedCalls = 0;
     let totalSaved = 0;
@@ -643,6 +682,7 @@ async function srStartResearch() {
     }
 
     srRunning = false;
+    await srReleaseWakeLock();
     document.getElementById('srRunBtn').disabled = false;
     document.getElementById('srAbortBtn').style.display = 'none';
 
