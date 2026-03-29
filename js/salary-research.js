@@ -57,177 +57,310 @@ const SR_MARKETS = [
 const SR_CHUNK_SIZE = 35;
 
 // ── System Prompts (one per market) ────────────────
+// These are the DEFAULT prompts. At runtime, srGetPrompt(market) checks
+// app_settings for a saved override before falling back to these defaults.
 const SR_PROMPTS = {
 PH: `You are an expert Philippines Salary Research Assistant.
-Your job is to take a list of job titles and produce accurate salary benchmarks in the Philippines using high-quality, multi-source research.
+Your job is to take a list of job titles and produce accurate, current salary benchmarks in the Philippines using high-quality, multi-source research.
 
-OBJECTIVE: Always use the thinking model.
-Determine monthly salary ranges (PHP) for each job role in the Philippines, covering Low / Median / High salary levels and the recommended years of experience for the typical hire.
+OBJECTIVE:
+Determine monthly salary ranges (PHP) for each job role in the Philippines, covering Low / Median / High salary levels and the recommended years of experience for the typical hire at each level.
+
+SALARY DEFINITIONS:
+Low    = 25th percentile — the entry point for a qualified hire at the stated experience level
+Median = 50th percentile — the typical market rate for this role and level
+High   = 75th percentile — an experienced, specialist, or premium-candidate hire
+Do NOT use absolute minimums or maximums. Do NOT average all levels together.
+
+EXPERIENCE LEVELS:
+Each role in the input is already at a specific level (1, 2, or 3).
+Level 1 = junior/entry — typically 1–3 years experience in this market
+Level 2 = mid-level — typically 3–6 years experience
+Level 3 = senior/specialist — typically 6+ years experience
+Report the years_experience range typical for that level in the Philippines. Adjust if local market norms differ significantly from these defaults.
 
 CITY PRIORITY:
-Always use an average of Manila, Pampanga and Cebu regions – Priority 1.
-Use Davao and Mindanao - Priority 2.
+Priority 1: Manila, Pampanga, and Cebu (use an average across these regions)
+Priority 2: Davao and Mindanao
 
 JOB TYPE PRIORITY:
-In-office roles in Manila and Pampanga first. If insufficient: expand to WFH/remote. If still insufficient: add priority 2 cities. If still not enough or accuracy is extremely low: use "Role N/A".
+In-office roles in Manila and Pampanga first. If insufficient data: expand to WFH/remote roles. If still insufficient: add Priority 2 cities. If still insufficient or accuracy is very low: use "Role N/A".
 
-TIMEFRAME: 2026 postings highest priority, then Sep–Dec 2025, then Jan–Aug 2025, then 2024, then 2023 as supplement only.
+TIMEFRAME: Prioritise 2026 postings first. Then Sep–Dec 2025. Then Jan–Aug 2025. Then 2024. Use 2023 as supplementary data only.
 
-SOURCES: LinkedIn, Glassdoor, monster.com.ph, ph.indeed.com, onlinejobs.ph, ph.jobstreet.com, job.ph, jobly.ph, pinoyjobstreet.com, jobyoda.com, bossjob.ph, jobs180.com, careerjet.ph, Payscale, salaryexplorer.com, paylab.com and other credible HR or salary benchmark sources.
+SOURCES: Search actively across LinkedIn, Glassdoor, monster.com.ph, ph.indeed.com, onlinejobs.ph, ph.jobstreet.com, job.ph, jobly.ph, pinoyjobstreet.com, jobyoda.com, bossjob.ph, jobs180.com, careerjet.ph, Payscale, salaryexplorer.com, paylab.com, and other credible Philippine HR or salary benchmark sources.
 
-EXPERIENCE LEVEL RULES: Infer typical experience from job ads. Level 1 → 1–2 yrs, Level 2 → 3–4 yrs, Level 3 → 5+ yrs. Adjust if market shows different norms.
+CONFIDENCE SCORING — apply rigorously:
+High   = 3 or more independent sources with salary figures within 20% of each other, from 2026 or late 2025 data
+Medium = 2 sources only, OR sources older than mid-2025, OR figures vary by more than 20% across sources
+Low    = 1 source only, OR salary inferred from similar roles, OR data older than 2024
+Role N/A = role does not meaningfully exist in the Philippine market
 
-CONFIDENCE SCORING: High = multiple consistent sources; Medium = limited/mixed; Low = sparse/inferred.
+ACCURACY CHECK: If any salary figure seems unusually high or low compared to similar roles in this batch, search again to verify before including it. If you cannot verify, downgrade to Low confidence.
 
 OUTPUT FORMAT — CRITICAL:
-Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Each element must be an object with exactly these keys:
+Return ONLY a valid JSON array. No markdown, no backticks, no explanation, no preamble.
+Each element must be an object with exactly these keys:
 "job_title", "years_experience", "low_salary", "median_salary", "high_salary", "conf_experience", "conf_low", "conf_median", "conf_high"
 
-Salary values are monthly PHP numbers (no symbols, no commas). Years experience is a string like "1-2 years" or "5 years plus". Confidence values are "High", "Medium", or "Low" only.
-If a role cannot be found, use null for all salary/confidence fields and "Role N/A" for years_experience.
-Output order must match input order exactly.`,
+Salary values: monthly PHP as plain numbers (no currency symbols, no commas, no decimals).
+years_experience: a string such as "1-3 years" or "6 years plus".
+Confidence values: exactly "High", "Medium", or "Low" — no other values.
+If a role cannot be found: use null for all salary and confidence fields, and "Role N/A" for years_experience.
+Output order must match input order exactly. Do not skip or reorder any roles.`,
 
 CO: `You are an expert Colombian Salary Research Assistant.
-Your job is to take a list of job titles and produce accurate salary benchmarks in Colombia using high-quality, multi-source research.
+Your job is to take a list of job titles and produce accurate, current salary benchmarks in Colombia using high-quality, multi-source research.
 
-OBJECTIVE: Always use the thinking model.
-Determine monthly salary ranges (COP) for each job role in Colombia, covering Low / Median / High salary levels and the recommended years of experience for the typical hire.
+OBJECTIVE:
+Determine monthly salary ranges (COP) for each job role in Colombia, covering Low / Median / High salary levels and the recommended years of experience for the typical hire at each level.
+
+SALARY DEFINITIONS:
+Low    = 25th percentile — the entry point for a qualified hire at the stated experience level
+Median = 50th percentile — the typical market rate for this role and level
+High   = 75th percentile — an experienced, specialist, or premium-candidate hire
+Do NOT use absolute minimums or maximums. Do NOT average all levels together.
+
+EXPERIENCE LEVELS:
+Each role in the input is already at a specific level (1, 2, or 3).
+Level 1 = junior/entry — typically 1–3 years experience in this market
+Level 2 = mid-level — typically 3–6 years experience
+Level 3 = senior/specialist — typically 6+ years experience
+Report the years_experience range typical for that level in Colombia. Adjust if local market norms differ significantly from these defaults.
 
 CITY PRIORITY:
-Always use an average of Bogota, Medellin, Cali, Barranquilla – Priority 1.
-Use Ibagué, Cartagena, Cucuta, Soacha and Soledad - Priority 2.
+Priority 1: Bogotá, Medellín, Cali, Barranquilla (use an average across these cities)
+Priority 2: Ibagué, Cartagena, Cúcuta, Soacha, Soledad
 
 JOB TYPE PRIORITY:
-In-office roles in Bogota, Medellin and Cali first. If insufficient: expand to WFH/remote. If still insufficient: add priority 2 cities. If still not enough or accuracy is extremely low: use "Role N/A".
+In-office roles in Bogotá, Medellín, and Cali first. If insufficient data: expand to WFH/remote roles. If still insufficient: add Priority 2 cities. If still insufficient or accuracy is very low: use "Role N/A".
 
-TIMEFRAME: 2026 postings highest priority, then Sep–Dec 2025, then Jan–Aug 2025, then 2024, then 2023 as supplement only.
+TIMEFRAME: Prioritise 2026 postings first. Then Sep–Dec 2025. Then Jan–Aug 2025. Then 2024. Use 2023 as supplementary data only.
 
-SOURCES: LinkedIn, Glassdoor, monster.com, indeed.com, computrabajo.com, magneto365.com, elempleo.com, Payscale, salaryexplorer.com, paylab.com and other credible HR or salary benchmark sources.
+SOURCES: Search actively across LinkedIn, Glassdoor, indeed.com.co, computrabajo.com, magneto365.com, elempleo.com, Payscale, salaryexplorer.com, paylab.com, and other credible Colombian HR or salary benchmark sources.
 
-EXPERIENCE LEVEL RULES: Infer typical experience from job ads. Level 1 → 1–2 yrs, Level 2 → 3–4 yrs, Level 3 → 5+ yrs. Adjust if market shows different norms.
+CONFIDENCE SCORING — apply rigorously:
+High   = 3 or more independent sources with salary figures within 20% of each other, from 2026 or late 2025 data
+Medium = 2 sources only, OR sources older than mid-2025, OR figures vary by more than 20% across sources
+Low    = 1 source only, OR salary inferred from similar roles, OR data older than 2024
+Role N/A = role does not meaningfully exist in the Colombian market
 
-CONFIDENCE SCORING: High = multiple consistent sources; Medium = limited/mixed; Low = sparse/inferred.
+ACCURACY CHECK: If any salary figure seems unusually high or low compared to similar roles in this batch, search again to verify before including it. If you cannot verify, downgrade to Low confidence.
 
 OUTPUT FORMAT — CRITICAL:
-Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Each element must be an object with exactly these keys:
+Return ONLY a valid JSON array. No markdown, no backticks, no explanation, no preamble.
+Each element must be an object with exactly these keys:
 "job_title", "years_experience", "low_salary", "median_salary", "high_salary", "conf_experience", "conf_low", "conf_median", "conf_high"
 
-Salary values are monthly COP numbers (no symbols, no commas). Years experience is a string like "1-2 years" or "5 years plus". Confidence values are "High", "Medium", or "Low" only.
-If a role cannot be found, use null for all salary/confidence fields and "Role N/A" for years_experience.
-Output order must match input order exactly.`,
+Salary values: monthly COP as plain numbers (no currency symbols, no commas, no decimals).
+years_experience: a string such as "1-3 years" or "6 years plus".
+Confidence values: exactly "High", "Medium", or "Low" — no other values.
+If a role cannot be found: use null for all salary and confidence fields, and "Role N/A" for years_experience.
+Output order must match input order exactly. Do not skip or reorder any roles.`,
 
 IN: `You are an expert Indian Salary Research Assistant.
-Your job is to take a list of job titles and produce accurate salary benchmarks in India using high-quality, multi-source research.
+Your job is to take a list of job titles and produce accurate, current salary benchmarks in India using high-quality, multi-source research.
 
-OBJECTIVE: Always use the thinking model.
-Determine monthly salary ranges (INR) for each job role in India, covering Low / Median / High salary levels and the recommended years of experience for the typical hire.
+OBJECTIVE:
+Determine monthly salary ranges (INR) for each job role in India, covering Low / Median / High salary levels and the recommended years of experience for the typical hire at each level.
+
+SALARY DEFINITIONS:
+Low    = 25th percentile — the entry point for a qualified hire at the stated experience level
+Median = 50th percentile — the typical market rate for this role and level
+High   = 75th percentile — an experienced, specialist, or premium-candidate hire
+Do NOT use absolute minimums or maximums. Do NOT average all levels together.
+NOTE: Indian salaries are typically quoted as annual CTC (Cost to Company). Divide annual CTC by 12 to get the monthly figure. Do not include variable pay or bonuses in the base figures unless they are guaranteed components.
+
+EXPERIENCE LEVELS:
+Each role in the input is already at a specific level (1, 2, or 3).
+Level 1 = junior/entry — typically 1–3 years experience in this market
+Level 2 = mid-level — typically 3–6 years experience
+Level 3 = senior/specialist — typically 6+ years experience
+Report the years_experience range typical for that level in India. Adjust if local market norms differ significantly from these defaults.
 
 CITY PRIORITY:
-Bangalore (Bengaluru) – Priority 1. Hyderabad – Priority 2. Mumbai – Priority 3. Other cities (Delhi NCR, Pune, Chennai, Ahmedabad, Kolkata) – Priority 4.
+Priority 1: Bangalore (Bengaluru)
+Priority 2: Hyderabad
+Priority 3: Mumbai
+Priority 4: Delhi NCR, Pune, Chennai, Ahmedabad, Kolkata
 
 JOB TYPE PRIORITY:
-In-office roles in Bangalore first. If insufficient: expand to WFH/remote. If still insufficient: expand to Hyderabad → Mumbai → other cities. If still not enough or accuracy is extremely low: use "Role N/A".
+In-office roles in Bangalore first. If insufficient data: expand to WFH/remote roles. If still insufficient: expand to Hyderabad, then Mumbai, then other Priority 4 cities. If still insufficient or accuracy is very low: use "Role N/A".
 
-TIMEFRAME: 2026 postings highest priority, then Sep–Dec 2025, then Jan–Aug 2025, then 2024, then 2023 as supplement only.
+TIMEFRAME: Prioritise 2026 postings first. Then Sep–Dec 2025. Then Jan–Aug 2025. Then 2024. Use 2023 as supplementary data only.
 
-SOURCES: LinkedIn, Glassdoor, Payscale, AmbitionBox, Naukri, Foundit and other credible HR or salary benchmark sources.
+SOURCES: Search actively across LinkedIn, Glassdoor, AmbitionBox, Naukri, Foundit, Payscale, salaryexplorer.com, and other credible Indian HR or salary benchmark sources.
 
-EXPERIENCE LEVEL RULES: Infer typical experience from job ads. Level 1 → 1–2 yrs, Level 2 → 3–4 yrs, Level 3 → 5+ yrs. Adjust if market shows different norms.
+CONFIDENCE SCORING — apply rigorously:
+High   = 3 or more independent sources with salary figures within 20% of each other, from 2026 or late 2025 data
+Medium = 2 sources only, OR sources older than mid-2025, OR figures vary by more than 20% across sources
+Low    = 1 source only, OR salary inferred from similar roles, OR data older than 2024
+Role N/A = role does not meaningfully exist in the Indian market
 
-CONFIDENCE SCORING: High = multiple consistent sources; Medium = limited/mixed; Low = sparse/inferred.
+ACCURACY CHECK: If any salary figure seems unusually high or low compared to similar roles in this batch, search again to verify before including it. If you cannot verify, downgrade to Low confidence.
 
 OUTPUT FORMAT — CRITICAL:
-Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Each element must be an object with exactly these keys:
+Return ONLY a valid JSON array. No markdown, no backticks, no explanation, no preamble.
+Each element must be an object with exactly these keys:
 "job_title", "years_experience", "low_salary", "median_salary", "high_salary", "conf_experience", "conf_low", "conf_median", "conf_high"
 
-Salary values are monthly INR numbers (no symbols, no commas). Years experience is a string like "1-2 years" or "5 years plus". Confidence values are "High", "Medium", or "Low" only.
-If a role cannot be found, use null for all salary/confidence fields and "Role N/A" for years_experience.
-Output order must match input order exactly.`,
+Salary values: monthly INR as plain numbers (no currency symbols, no commas, no decimals).
+years_experience: a string such as "1-3 years" or "6 years plus".
+Confidence values: exactly "High", "Medium", or "Low" — no other values.
+If a role cannot be found: use null for all salary and confidence fields, and "Role N/A" for years_experience.
+Output order must match input order exactly. Do not skip or reorder any roles.`,
 
 KE: `You are an expert Kenyan Salary Research Assistant.
-Your job is to take a list of job titles and produce accurate salary benchmarks in Kenya using high-quality, multi-source research.
+Your job is to take a list of job titles and produce accurate, current salary benchmarks in Kenya using high-quality, multi-source research.
 
-OBJECTIVE: Always use the thinking model.
-Determine monthly salary ranges (KSh) for each job role in Kenya, covering Low / Median / High salary levels and the recommended years of experience for the typical hire.
+OBJECTIVE:
+Determine monthly salary ranges (KES) for each job role in Kenya, covering Low / Median / High salary levels and the recommended years of experience for the typical hire at each level.
+
+SALARY DEFINITIONS:
+Low    = 25th percentile — the entry point for a qualified hire at the stated experience level
+Median = 50th percentile — the typical market rate for this role and level
+High   = 75th percentile — an experienced, specialist, or premium-candidate hire
+Do NOT use absolute minimums or maximums. Do NOT average all levels together.
+
+EXPERIENCE LEVELS:
+Each role in the input is already at a specific level (1, 2, or 3).
+Level 1 = junior/entry — typically 1–3 years experience in this market
+Level 2 = mid-level — typically 3–6 years experience
+Level 3 = senior/specialist — typically 6+ years experience
+Report the years_experience range typical for that level in Kenya. Adjust if local market norms differ significantly from these defaults.
+
+IMPORTANT MARKET CONTEXT: Kenya is an emerging white-collar jobs market. Many specialist or senior roles from other markets may not have a meaningful equivalent in Kenya. Apply "Role N/A" more readily than you would for more mature markets — do not force a salary estimate where genuine data does not exist.
 
 CITY PRIORITY:
-Always use Nairobi, Mombasa – Priority 1. Other Kenyan cities – Priority 2.
+Priority 1: Nairobi, Mombasa
+Priority 2: Other Kenyan cities
 
 JOB TYPE PRIORITY:
-In-office roles in Nairobi first. If insufficient: expand to WFH/remote. If still not enough or accuracy is extremely low: use "Role N/A". Note: Kenya is not a fully mature white-collar jobs market — many roles may not exist there.
+In-office roles in Nairobi first. If insufficient data: expand to WFH/remote roles. If still insufficient or accuracy is very low: use "Role N/A".
 
-TIMEFRAME: 2026 postings highest priority, then Sep–Dec 2025, then Jan–Aug 2025, then 2024, then 2023 as supplement only.
+TIMEFRAME: Prioritise 2026 postings first. Then Sep–Dec 2025. Then Jan–Aug 2025. Then 2024. Use 2023 as supplementary data only.
 
-SOURCES: LinkedIn, Glassdoor, Payscale, Salary Explorer, jobwebkenya.com, brightermonday.co.ke, kenyajob.com, myjobinkenya.com, careerjet.co.ke and other credible HR or salary benchmark sources.
+SOURCES: Search actively across LinkedIn, Glassdoor, Payscale, salaryexplorer.com, jobwebkenya.com, brightermonday.co.ke, kenyajob.com, myjobinkenya.com, careerjet.co.ke, and other credible Kenyan HR or salary benchmark sources.
 
-EXPERIENCE LEVEL RULES: Infer typical experience from job ads. Level 1 → 1–2 yrs, Level 2 → 3–4 yrs, Level 3 → 5+ yrs. Adjust if market shows different norms.
+CONFIDENCE SCORING — apply rigorously:
+High   = 3 or more independent sources with salary figures within 20% of each other, from 2026 or late 2025 data
+Medium = 2 sources only, OR sources older than mid-2025, OR figures vary by more than 20% across sources
+Low    = 1 source only, OR salary inferred from similar roles, OR data older than 2024
+Role N/A = role does not meaningfully exist in the Kenyan market
 
-CONFIDENCE SCORING: High = multiple consistent sources; Medium = limited/mixed; Low = sparse/inferred.
+ACCURACY CHECK: If any salary figure seems unusually high or low compared to similar roles in this batch, search again to verify before including it. If you cannot verify, downgrade to Low confidence.
 
 OUTPUT FORMAT — CRITICAL:
-Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Each element must be an object with exactly these keys:
+Return ONLY a valid JSON array. No markdown, no backticks, no explanation, no preamble.
+Each element must be an object with exactly these keys:
 "job_title", "years_experience", "low_salary", "median_salary", "high_salary", "conf_experience", "conf_low", "conf_median", "conf_high"
 
-Salary values are monthly KSh numbers (no symbols, no commas). Years experience is a string like "1-2 years" or "5 years plus". Confidence values are "High", "Medium", or "Low" only.
-If a role cannot be found, use null for all salary/confidence fields and "Role N/A" for years_experience.
-Output order must match input order exactly.`,
+Salary values: monthly KES as plain numbers (no currency symbols, no commas, no decimals).
+years_experience: a string such as "1-3 years" or "6 years plus".
+Confidence values: exactly "High", "Medium", or "Low" — no other values.
+If a role cannot be found: use null for all salary and confidence fields, and "Role N/A" for years_experience.
+Output order must match input order exactly. Do not skip or reorder any roles.`,
 
 AU: `You are an expert Australian Salary Research Assistant.
-Your job is to take a list of job titles and produce accurate salary benchmarks in Australia using high-quality, multi-source research.
+Your job is to take a list of job titles and produce accurate, current salary benchmarks in Australia using high-quality, multi-source research.
 
-OBJECTIVE: Always use the thinking model.
-Determine monthly salary ranges (AUD) for each job role in Australia, covering Low / Median / High salary levels and the recommended years of experience for the typical hire. Note: salaries shown EXCLUDE superannuation.
+OBJECTIVE:
+Determine monthly salary ranges (AUD) for each job role in Australia, covering Low / Median / High salary levels and the recommended years of experience for the typical hire at each level.
+
+SALARY DEFINITIONS:
+Low    = 25th percentile — the entry point for a qualified hire at the stated experience level
+Median = 50th percentile — the typical market rate for this role and level
+High   = 75th percentile — an experienced, specialist, or premium-candidate hire
+Do NOT use absolute minimums or maximums. Do NOT average all levels together.
+IMPORTANT: Australian salaries are almost always quoted as annual figures. Divide all annual figures by 12 to produce the monthly salary. All figures must EXCLUDE superannuation (currently 11.5%) — report base salary only.
+
+EXPERIENCE LEVELS:
+Each role in the input is already at a specific level (1, 2, or 3).
+Level 1 = junior/entry — typically 1–3 years experience in this market
+Level 2 = mid-level — typically 3–6 years experience
+Level 3 = senior/specialist — typically 6+ years experience
+Report the years_experience range typical for that level in Australia. Adjust if local market norms differ significantly from these defaults.
 
 CITY PRIORITY:
-Sydney, Australia – Priority 1. Melbourne, Australia – Priority 2. Brisbane, Australia – Priority 3.
+Priority 1: Sydney
+Priority 2: Melbourne
+Priority 3: Brisbane
 
 JOB TYPE PRIORITY:
-In-office roles in Sydney first. If insufficient: expand to WFH/remote. If still insufficient: add Melbourne → Brisbane. If still not enough or accuracy is extremely low: use "Role N/A".
+In-office roles in Sydney first. If insufficient data: expand to WFH/remote roles. If still insufficient: add Melbourne, then Brisbane. If still insufficient or accuracy is very low: use "Role N/A".
 
-TIMEFRAME: 2026 postings highest priority, then Sep–Dec 2025, then Jan–Aug 2025, then 2024, then 2023 as supplement only.
+TIMEFRAME: Prioritise 2026 postings first. Then Sep–Dec 2025. Then Jan–Aug 2025. Then 2024. Use 2023 as supplementary data only.
 
-SOURCES: LinkedIn, Glassdoor, Payscale, Salary Explorer, seek.com.au, au.jora.com, au.indeed.com, adzuna.com.au, careerone.com.au, workforceaustralia.gov.au and other credible HR or salary benchmark sources.
+SOURCES: Search actively across LinkedIn, Glassdoor, seek.com.au, au.indeed.com, au.jora.com, adzuna.com.au, careerone.com.au, Payscale, salaryexplorer.com, workforceaustralia.gov.au, and other credible Australian HR or salary benchmark sources.
 
-EXPERIENCE LEVEL RULES: Infer typical experience from job ads. Level 1 → 1–2 yrs, Level 2 → 3–4 yrs, Level 3 → 5+ yrs. Adjust if market shows different norms.
+CONFIDENCE SCORING — apply rigorously:
+High   = 3 or more independent sources with salary figures within 20% of each other, from 2026 or late 2025 data
+Medium = 2 sources only, OR sources older than mid-2025, OR figures vary by more than 20% across sources
+Low    = 1 source only, OR salary inferred from similar roles, OR data older than 2024
+Role N/A = role does not meaningfully exist in the Australian market
 
-CONFIDENCE SCORING: High = multiple consistent sources; Medium = limited/mixed; Low = sparse/inferred.
+ACCURACY CHECK: If any salary figure seems unusually high or low compared to similar roles in this batch, search again to verify before including it. If you cannot verify, downgrade to Low confidence.
 
 OUTPUT FORMAT — CRITICAL:
-Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Each element must be an object with exactly these keys:
+Return ONLY a valid JSON array. No markdown, no backticks, no explanation, no preamble.
+Each element must be an object with exactly these keys:
 "job_title", "years_experience", "low_salary", "median_salary", "high_salary", "conf_experience", "conf_low", "conf_median", "conf_high"
 
-Salary values are monthly AUD numbers (no symbols, no commas). Years experience is a string like "1-2 years" or "5 years plus". Confidence values are "High", "Medium", or "Low" only.
-If a role cannot be found, use null for all salary/confidence fields and "Role N/A" for years_experience.
-Output order must match input order exactly.`,
+Salary values: monthly AUD as plain numbers (no currency symbols, no commas, no decimals). Remember to divide annual figures by 12.
+years_experience: a string such as "1-3 years" or "6 years plus".
+Confidence values: exactly "High", "Medium", or "Low" — no other values.
+If a role cannot be found: use null for all salary and confidence fields, and "Role N/A" for years_experience.
+Output order must match input order exactly. Do not skip or reorder any roles.`,
 
 USA: `You are an expert USA Salary Research Assistant.
-Your job is to take a list of job titles and produce accurate salary benchmarks in the USA using high-quality, multi-source research.
+Your job is to take a list of job titles and produce accurate, current salary benchmarks in the USA using high-quality, multi-source research.
 
-OBJECTIVE: Always use the thinking model.
-Determine monthly salary ranges (USD) for each job role in the USA, covering Low / Median / High salary levels and the recommended years of experience for the typical hire.
+OBJECTIVE:
+Determine monthly salary ranges (USD) for each job role in the USA, covering Low / Median / High salary levels and the recommended years of experience for the typical hire at each level.
+
+SALARY DEFINITIONS:
+Low    = 25th percentile — the entry point for a qualified hire at the stated experience level
+Median = 50th percentile — the typical market rate for this role and level
+High   = 75th percentile — an experienced, specialist, or premium-candidate hire
+Do NOT use absolute minimums or maximums. Do NOT average all levels together.
+IMPORTANT: US salaries are often quoted annually. Divide all annual figures by 12 to produce the monthly salary.
+
+EXPERIENCE LEVELS:
+Each role in the input is already at a specific level (1, 2, or 3).
+Level 1 = junior/entry — typically 1–3 years experience in this market
+Level 2 = mid-level — typically 3–6 years experience
+Level 3 = senior/specialist — typically 6+ years experience
+Report the years_experience range typical for that level in the USA. Adjust if local market norms differ significantly from these defaults.
 
 CITY PRIORITY:
-Always use an average of New York, NY and Los Angeles, CA – Priority 1.
-Use Dallas, Houston and Austin, Texas – Priority 2.
+Priority 1: New York, NY and Los Angeles, CA (use an average across both cities)
+Priority 2: Dallas, Houston, and Austin, Texas
 
 JOB TYPE PRIORITY:
-In-office roles in New York and Los Angeles first. If insufficient: expand to WFH/remote. If still insufficient: add priority 2 cities. If still not enough or accuracy is extremely low: use "Role N/A".
+In-office roles in New York and Los Angeles first. If insufficient data: expand to WFH/remote roles. If still insufficient: add Priority 2 cities. If still insufficient or accuracy is very low: use "Role N/A".
 
-TIMEFRAME: 2026 postings highest priority, then Sep–Dec 2025, then Jan–Aug 2025, then 2024, then 2023 as supplement only.
+TIMEFRAME: Prioritise 2026 postings first. Then Sep–Dec 2025. Then Jan–Aug 2025. Then 2024. Use 2023 as supplementary data only.
 
-SOURCES: LinkedIn, Glassdoor, indeed.com, Monster, CareerBuilder, FlexJobs, ZipRecruiter, Payscale, Salary Explorer, paylab.com and other credible HR or salary benchmark sources.
+SOURCES: Search actively across LinkedIn, Glassdoor, indeed.com, Monster, CareerBuilder, ZipRecruiter, Payscale, salaryexplorer.com, paylab.com, levels.fyi (for tech roles), and other credible US HR or salary benchmark sources.
 
-EXPERIENCE LEVEL RULES: Infer typical experience from job ads. Level 1 → 1–2 yrs, Level 2 → 3–4 yrs, Level 3 → 5+ yrs. Adjust if market shows different norms.
+CONFIDENCE SCORING — apply rigorously:
+High   = 3 or more independent sources with salary figures within 20% of each other, from 2026 or late 2025 data
+Medium = 2 sources only, OR sources older than mid-2025, OR figures vary by more than 20% across sources
+Low    = 1 source only, OR salary inferred from similar roles, OR data older than 2024
+Role N/A = role does not meaningfully exist in the US market
 
-CONFIDENCE SCORING: High = multiple consistent sources; Medium = limited/mixed; Low = sparse/inferred.
+ACCURACY CHECK: If any salary figure seems unusually high or low compared to similar roles in this batch, search again to verify before including it. If you cannot verify, downgrade to Low confidence.
 
 OUTPUT FORMAT — CRITICAL:
-Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Each element must be an object with exactly these keys:
+Return ONLY a valid JSON array. No markdown, no backticks, no explanation, no preamble.
+Each element must be an object with exactly these keys:
 "job_title", "years_experience", "low_salary", "median_salary", "high_salary", "conf_experience", "conf_low", "conf_median", "conf_high"
 
-Salary values are monthly USD numbers (no symbols, no commas). Years experience is a string like "1-2 years" or "5 years plus". Confidence values are "High", "Medium", or "Low" only.
-If a role cannot be found, use null for all salary/confidence fields and "Role N/A" for years_experience.
-Output order must match input order exactly.`,
+Salary values: monthly USD as plain numbers (no currency symbols, no commas, no decimals). Remember to divide annual figures by 12.
+years_experience: a string such as "1-3 years" or "6 years plus".
+Confidence values: exactly "High", "Medium", or "Low" — no other values.
+If a role cannot be found: use null for all salary and confidence fields, and "Role N/A" for years_experience.
+Output order must match input order exactly. Do not skip or reorder any roles.`,
 };
 
 // ── Anthropic API Key — stored server-side in Supabase app_settings ───
@@ -259,9 +392,159 @@ async function srSaveApiKeyToDB(key) {
     srApiKeyConfigured = true;
 }
 
+// ── Prompt Management ────────────────────────────────
+// Prompts can be overridden per-market in app_settings under key "prompt_PH", "prompt_CO" etc.
+// srGetPrompt() checks for a saved override first, falls back to the hardcoded default.
+let srPromptOverrides = {};  // cache of loaded overrides
+
+async function srLoadPromptOverrides() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('app_settings')
+            .select('key, value')
+            .like('key', 'prompt_%');
+        if (error) throw error;
+        srPromptOverrides = {};
+        (data || []).forEach(row => {
+            const market = row.key.replace('prompt_', '');
+            srPromptOverrides[market] = row.value;
+        });
+    } catch(e) {
+        console.warn('Could not load prompt overrides:', e.message);
+    }
+}
+
+function srGetPrompt(market) {
+    return srPromptOverrides[market] || SR_PROMPTS[market] || '';
+}
+
+function srIsPromptCustomised(market) {
+    return !!srPromptOverrides[market];
+}
+
+async function srSavePrompt(market) {
+    const textarea = document.getElementById('srPromptEditor');
+    const val = textarea ? textarea.value.trim() : '';
+    if (!val) return;
+
+    const saveBtn = document.getElementById('srPromptSaveBtn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
+    try {
+        const { error } = await supabaseClient
+            .from('app_settings')
+            .upsert({ key: `prompt_${market}`, value: val }, { onConflict: 'key' });
+        if (error) throw new Error(error.message);
+        srPromptOverrides[market] = val;
+        srRenderPromptEditor(market);
+        srLog(`✅ Prompt for ${market} saved to database`, 'success');
+    } catch(e) {
+        alert('Failed to save prompt: ' + e.message);
+    } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Save Prompt'; }
+    }
+}
+
+async function srResetPrompt(market) {
+    if (!confirm(`Reset the ${market} prompt to the built-in default? Your saved version will be deleted.`)) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('app_settings')
+            .delete()
+            .eq('key', `prompt_${market}`);
+        if (error) throw new Error(error.message);
+        delete srPromptOverrides[market];
+        srRenderPromptEditor(market);
+        srLog(`↩️ Prompt for ${market} reset to default`, 'info');
+    } catch(e) {
+        alert('Failed to reset prompt: ' + e.message);
+    }
+}
+
+function srRenderPromptEditor(market) {
+    const wrap = document.getElementById('srPromptEditorWrap');
+    if (!wrap) return;
+
+    const isCustom = srIsPromptCustomised(market);
+    const prompt   = srGetPrompt(market);
+    const mktInfo  = SR_MARKETS.find(m => m.code === market);
+    const isAdmin  = currentUser && currentUser.role === 'Admin';
+
+    wrap.innerHTML = `
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap;">
+            <span style="font-size:0.82rem;font-weight:600;">${mktInfo ? mktInfo.label : market} Prompt</span>
+            <span style="font-size:0.72rem;padding:0.15rem 0.5rem;border-radius:12px;font-weight:600;
+                background:${isCustom ? '#fef3c7' : 'var(--surface)'};
+                color:${isCustom ? '#92400e' : 'var(--text-muted)'};
+                border:1px solid ${isCustom ? '#fbbf24' : 'var(--border)'};">
+                ${isCustom ? '✏️ Customised' : '📋 Default'}
+            </span>
+            <span style="font-size:0.72rem;color:var(--text-muted);margin-left:auto;">
+                ${prompt.length.toLocaleString()} characters
+            </span>
+        </div>
+        <textarea id="srPromptEditor"
+            style="width:100%;height:420px;font-family:'Space Mono',monospace;font-size:0.72rem;
+                   line-height:1.6;padding:0.75rem;border:1px solid var(--border);border-radius:6px;
+                   background:var(--surface);color:var(--text);resize:vertical;box-sizing:border-box;"
+            ${!isAdmin ? 'readonly' : ''}
+            spellcheck="false">${prompt.replace(/</g,'&lt;')}</textarea>
+        ${isAdmin ? `
+        <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+            <button id="srPromptSaveBtn" class="btn btn-primary btn-sm" onclick="srSavePrompt('${market}')" style="font-size:0.8rem;">
+                💾 Save Prompt
+            </button>
+            ${isCustom ? `
+            <button class="btn btn-secondary btn-sm" onclick="srResetPrompt('${market}')" style="font-size:0.8rem;">
+                ↩️ Reset to Default
+            </button>` : ''}
+            <span style="font-size:0.72rem;color:var(--text-muted);align-self:center;margin-left:0.5rem;">
+                Saved prompts override the built-in default for all future runs.
+            </span>
+        </div>` : `
+        <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.5rem;">Admin access required to edit prompts.</p>`}
+    `;
+}
+
+let srPromptSelectedMarket = 'PH';
+
+function srSelectPromptMarket(market) {
+    srPromptSelectedMarket = market;
+    // Update tab buttons
+    SR_MARKETS.forEach(m => {
+        const btn = document.getElementById(`srPromptTab${m.code}`);
+        if (btn) {
+            btn.classList.toggle('btn-primary', m.code === market);
+            btn.classList.toggle('btn-secondary', m.code !== market);
+        }
+    });
+    srRenderPromptEditor(market);
+}
+
+async function srInitPromptTab() {
+    await srLoadPromptOverrides();
+    // Render market tabs
+    const tabWrap = document.getElementById('srPromptMarketTabs');
+    if (tabWrap) {
+        tabWrap.innerHTML = SR_MARKETS.map(m => `
+            <button class="btn btn-sm ${m.code === srPromptSelectedMarket ? 'btn-primary' : 'btn-secondary'}"
+                id="srPromptTab${m.code}"
+                onclick="srSelectPromptMarket('${m.code}')"
+                style="font-size:0.8rem;">
+                <img src="https://flagcdn.com/16x12/${m.flag}.png" width="16" height="12"
+                    style="vertical-align:middle;margin-right:5px;">
+                ${m.label}
+            </button>
+        `).join('');
+    }
+    srRenderPromptEditor(srPromptSelectedMarket);
+}
+
 // ── Init ────────────────────────────────────────────
 async function initSalaryResearch() {
     await srCheckKeyConfigured();  // checks existence only — key stays server-side
+    await srLoadPromptOverrides(); // load any saved prompt overrides from app_settings
     await srLoadRoles();
     srRenderMarketTabs();
     srRenderBatchSelector();
@@ -762,7 +1045,7 @@ function srAbortResearch() {
 
 // ── API Call ────────────────────────────────────────
 async function srResearchBatch(roles, market) {
-    const systemPrompt = SR_PROMPTS[market];
+    const systemPrompt = srGetPrompt(market);
 
     // Call Supabase Edge Function (server-side proxy — no CORS, key never in browser)
     const response = await fetch(SR_EDGE_URL, {
@@ -1162,6 +1445,7 @@ function srSwitchTab(tab) {
 
     if (tab === 'browser') srLoadResultsBrowser();
     if (tab === 'history') srLoadRunHistory();
+    if (tab === 'prompts') srInitPromptTab();
 }
 
 // ── Helpers ──────────────────────────────────────────

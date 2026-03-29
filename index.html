@@ -1288,6 +1288,7 @@
                 <button id="srTabBtn-browser" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('browser')" style="font-size:0.8rem;">📊 Results Browser</button>
                 <button id="srTabBtn-export" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('export')" style="font-size:0.8rem;">⬇ Export</button>
                 <button id="srTabBtn-history" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('history')" style="font-size:0.8rem;">📋 Run History</button>
+                <button id="srTabBtn-prompts" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('prompts')" style="font-size:0.8rem;">✏️ Prompts</button>
             </div>
 
             <!-- ── TAB: RUN ── -->
@@ -1433,6 +1434,20 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            <!-- ── TAB: PROMPTS ── -->
+            <div id="srTab-prompts" class="sr-tab-panel" style="display:none;">
+                <div class="card">
+                    <div class="card-title" style="margin-bottom:0.75rem;">Research Prompts</div>
+                    <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem;">
+                        View and edit the system prompt sent to Claude for each market. Saved prompts are stored in the database and override the built-in defaults for all future runs. Admins only can edit.
+                    </p>
+                    <!-- Market tabs -->
+                    <div id="srPromptMarketTabs" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:1rem;"></div>
+                    <!-- Editor -->
+                    <div id="srPromptEditorWrap"></div>
                 </div>
             </div>
 
