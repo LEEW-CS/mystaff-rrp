@@ -1,11 +1,9 @@
 // ================================================================
 // CLOUDSTAFF TEAM BUILDER WIDGET — teambuilder-widget.js
 // Loaded by the RRP Calculator app after config.js.
-// Uses SUPABASE_URL + SUPABASE_KEY globals from config.js.
+// Uses supabaseClient global from config.js — same as all other modules.
+// No credentials stored here.
 // ================================================================
-
-const TB_URL = (typeof SUPABASE_URL !== 'undefined') ? SUPABASE_URL : '';
-const TB_KEY = (typeof SUPABASE_KEY !== 'undefined') ? SUPABASE_KEY : '';
 
 const TB_PB = {
   office: { name:'Current ELEVATE WFO',    USD:699, AUD:999, GBP:533, HKD:5445, SGD:943, EUR:695, CAD:945, NZD:1145 },
@@ -45,14 +43,6 @@ let tbExp      = 'Mid';
 let tbHW       = 'basic';
 let tbWidgetMounted = false;
 
-async function tbFetch(path, rangeHeader) {
-  const headers = { 'apikey':TB_KEY, 'Authorization':`Bearer ${TB_KEY}`, 'Accept':'application/json' };
-  if (rangeHeader) { headers['Range']=rangeHeader; headers['Range-Unit']='items'; headers['Prefer']='count=none'; }
-  const res = await fetch(`${TB_URL}/rest/v1/${path}`, { headers });
-  if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
-  return res.json();
-}
-
 async function tbInit() {
   try {
     await Promise.all([ tbLoadRoles(), tbLoadHardware(), tbLoadFX() ]);
@@ -67,10 +57,14 @@ async function tbLoadRoles() {
   await Promise.all(['PH','CO'].map(async m => {
     let all = [], from = 0;
     while(true) {
-      const data = await tbFetch(
-        `salary_ranges?select=id,job_title,category,jpid_level,low_salary,median_salary,high_salary&market=eq.${m}&order=category.asc,job_title.asc`,
-        `${from}-${from+999}`
-      );
+      const { data, error } = await supabaseClient
+        .from('salary_ranges')
+        .select('id,job_title,category,jpid_level,low_salary,median_salary,high_salary')
+        .eq('market', m)
+        .order('category', { ascending:true })
+        .order('job_title', { ascending:true })
+        .range(from, from + 999);
+      if (error) throw new Error(error.message);
       if (!data || !data.length) break;
       all = all.concat(data); from += 1000;
       if (data.length < 1000) break;
@@ -80,16 +74,31 @@ async function tbLoadRoles() {
 }
 
 async function tbLoadHardware() {
-  tbHardware = await tbFetch(
-    `hardware_products?select=id,name,category,price_usd_elevate,price_aud_elevate,price_gbp_elevate,price_hkd_elevate,price_sgd_elevate,price_eur_elevate,price_cad_elevate,price_nzd_elevate&order=category.asc,name.asc`
-  ) || [];
+  const { data, error } = await supabaseClient
+    .from('hardware_products')
+    .select('id,name,category,price_usd_elevate,price_aud_elevate,price_gbp_elevate,price_hkd_elevate,price_sgd_elevate,price_eur_elevate,price_cad_elevate,price_nzd_elevate')
+    .order('name', { ascending:true });
+  if (error) throw new Error(error.message);
+  tbHardware = data || [];
 }
 
 async function tbLoadFX() {
-  const ph = await tbFetch(`fx_monthly_rates?select=php,usd,gbp,hkd,sgd,eur,cad,nzd&market=eq.PH&order=month_date.desc&limit=1`);
+  const { data:ph, error:phErr } = await supabaseClient
+    .from('fx_monthly_rates')
+    .select('php,usd,gbp,hkd,sgd,eur,cad,nzd')
+    .eq('market', 'PH')
+    .order('month_date', { ascending:false })
+    .limit(1);
+  if (phErr) throw new Error(phErr.message);
   if (ph && ph[0]) tbFxRow = ph[0];
+
   try {
-    const co = await tbFetch(`fx_monthly_rates?select=cop,usd,gbp,hkd,sgd,eur,cad,nzd&market=eq.CO&order=month_date.desc&limit=1`);
+    const { data:co } = await supabaseClient
+      .from('fx_monthly_rates')
+      .select('cop,usd,gbp,hkd,sgd,eur,cad,nzd')
+      .eq('market', 'CO')
+      .order('month_date', { ascending:false })
+      .limit(1);
     if (co && co[0]) tbFxRowCO = co[0];
   } catch(e) {}
 }
