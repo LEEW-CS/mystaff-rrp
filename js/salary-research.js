@@ -1044,8 +1044,8 @@ function srAbortResearch() {
 }
 
 // ── API Call ────────────────────────────────────────
-async function srResearchBatch(roles, market) {
-    const systemPrompt = srGetPrompt(market);
+async function srResearchBatch(roles, market, systemPromptOverride = null) {
+    const systemPrompt = systemPromptOverride || srGetPrompt(market);
 
     // Call Supabase Edge Function (server-side proxy — no CORS, key never in browser)
     const response = await fetch(SR_EDGE_URL, {
@@ -1170,7 +1170,8 @@ async function srLoadResultsBrowser() {
     const marketFilter = document.getElementById('srBrowserMarket')?.value || 'PH';
     const catFilter    = document.getElementById('srBrowserCategory')?.value || '';
     const confFilter   = document.getElementById('srBrowserConf')?.value || '';
-    const staleFilter  = document.getElementById('srBrowserStale')?.checked || false;
+    const staleFilter  = document.getElementById('srBrowserStale')?.checked  || false;
+    const naFilter     = document.getElementById('srBrowserNAOnly')?.checked || false;
 
     const tbody = document.getElementById('srBrowserBody');
     const status = document.getElementById('srBrowserStatus');
@@ -1206,12 +1207,15 @@ async function srLoadResultsBrowser() {
         if (staleFilter) {
             rows = rows.filter(r => !r.researched_at || new Date(r.researched_at).getTime() < sevenDaysAgo);
         }
+        if (naFilter) {
+            rows = rows.filter(r => r.years_experience === 'Role N/A' || (r.low_salary == null && r.median_salary == null));
+        }
 
         srResultsCache = rows;
         if (status) status.textContent = `${rows.length} results`;
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-muted);">No results found. Run a research batch first.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text-muted);">No results found. Run a research batch first.</td></tr>';
             return;
         }
 
@@ -1221,6 +1225,7 @@ async function srLoadResultsBrowser() {
         tbody.innerHTML = rows.map(r => {
             const age = r.researched_at ? Math.floor((Date.now() - new Date(r.researched_at).getTime()) / 86400000) : null;
             const isStale = age !== null && age >= 7;
+            const isNA    = r.years_experience === 'Role N/A' || (r.low_salary == null && r.median_salary == null);
             const ageLabel = age === null ? '—' : age === 0 ? 'Today' : `${age}d ago`;
             const confDot = c => {
                 if (!c) return '<span style="color:var(--text-muted);">—</span>';
@@ -1228,9 +1233,10 @@ async function srLoadResultsBrowser() {
                 return `<span style="color:${col};font-weight:600;font-size:0.72rem;">${c[0]}</span>`;
             };
             const fmtNum = n => n != null ? Number(n).toLocaleString() : '—';
-            return `<tr style="font-size:0.73rem;${isStale?'opacity:0.6;':''}">
+            const rid = r.id;
+            return `<tr id="srBrowserRow-${rid}" style="font-size:0.73rem;${isStale?'opacity:0.6;':''}${isNA?'background:rgba(239,68,68,0.04);':''}">
                 <td style="font-family:'Space Mono',monospace;font-size:0.68rem;color:var(--text-muted);">${r.jpid_level||'—'}</td>
-                <td style="max-width:200px;">${r.job_title||'—'}</td>
+                <td style="max-width:180px;">${r.job_title||'—'}${isNA?'<span style="display:block;font-size:0.65rem;color:#ef4444;font-weight:600;">Role N/A</span>':''}</td>
                 <td style="font-size:0.68rem;color:var(--text-muted);">${r.category||'—'}</td>
                 <td style="font-size:0.7rem;">${r.years_experience||'—'}</td>
                 <td style="font-family:'Space Mono',monospace;font-size:0.7rem;">${fmtNum(r.low_salary)}</td>
@@ -1239,6 +1245,16 @@ async function srLoadResultsBrowser() {
                 <td style="text-align:center;">${confDot(r.conf_median)}</td>
                 <td style="font-size:0.68rem;color:${isStale?'#ef4444':'var(--text-muted)'};">${ageLabel}</td>
                 <td style="font-size:0.68rem;color:var(--text-muted);">${r.run_id||'—'}</td>
+                <td style="white-space:nowrap;">
+                    <button class="btn btn-secondary btn-sm"
+                        onclick="srReResearchRole(${rid})"
+                        title="Re-research this role with a more thorough prompt"
+                        style="font-size:0.65rem;padding:0.15rem 0.4rem;margin-right:2px;">🔄</button>
+                    <button class="btn btn-secondary btn-sm"
+                        onclick="srEditRole(${rid})"
+                        title="Manually edit this result"
+                        style="font-size:0.65rem;padding:0.15rem 0.4rem;">✏️</button>
+                </td>
             </tr>`;
         }).join('');
 
@@ -1264,6 +1280,204 @@ function srPopulateBrowserCategories(rows) {
     });
     // Restore previous selection if it still exists
     if (currentVal) sel.value = currentVal;
+}
+
+// ── Results Browser — Re-research & Edit ────────────
+
+async function srReResearchRole(rowId) {
+    // Find the row in cache
+    const row = srResultsCache.find(r => r.id === rowId);
+    if (!row) { alert('Row not found — please reload the browser tab.'); return; }
+
+    const market   = row.market;
+    const mktInfo  = SR_MARKETS.find(m => m.code === market);
+    const currency = mktInfo ? mktInfo.currency : market;
+    const isNA     = row.years_experience === 'Role N/A' || (row.low_salary == null && row.median_salary == null);
+
+    // Show the modal in "loading" state
+    const modal = document.getElementById('srReResearchModal');
+    document.getElementById('srRRTitle').textContent       = row.job_title;
+    document.getElementById('srRRMarket').textContent      = mktInfo ? mktInfo.label : market;
+    document.getElementById('srRRCurrentResult').innerHTML = srFormatRRCurrent(row, currency);
+    document.getElementById('srRRNewResult').innerHTML     = '<p style="color:var(--text-muted);font-size:0.8rem;">⏳ Researching — this may take up to 90 seconds…</p>';
+    document.getElementById('srRRAcceptBtn').style.display = 'none';
+    document.getElementById('srRRAcceptBtn').onclick       = null;
+    showModal('srReResearchModal');
+
+    // Build a single-role targeted prompt with "try harder" instructions
+    const basePrompt = srGetPrompt(market);
+    const retryNote  = isNA
+        ? `
+
+SPECIAL INSTRUCTION: A previous search for this role returned "Role N/A". Before concluding the role does not exist, please:
+1. Try alternative job title variations and synonyms
+2. Search for the closest equivalent role in this market
+3. Check if the function exists under a different title
+4. Only return Role N/A if you are confident after exhaustive search`
+        : `
+
+SPECIAL INSTRUCTION: Please re-research this role thoroughly. A previous result was returned but needs verification. Cross-check multiple sources carefully.`;
+    const systemPrompt = basePrompt + retryNote;
+
+    try {
+        const roleObj = { jpid_level: row.jpid_level, job_title: row.job_title, category: row.category, batch: row.batch };
+        const results = await srResearchBatch([roleObj], market, systemPrompt);
+        if (!results || !results.length) throw new Error('No result returned');
+
+        const newResult = results[0];
+        const newIsNA   = newResult.years_experience === 'Role N/A' || (newResult.low_salary == null && newResult.median_salary == null);
+
+        document.getElementById('srRRNewResult').innerHTML = srFormatRRNew(newResult, currency, newIsNA);
+
+        // Wire up Accept button
+        const acceptBtn = document.getElementById('srRRAcceptBtn');
+        acceptBtn.style.display = '';
+        acceptBtn.textContent   = newIsNA ? '✓ Accept (Role N/A)' : '✓ Accept New Result';
+        acceptBtn.onclick = async () => {
+            await srSaveSingleResult(row, newResult, market);
+            hideModal('srReResearchModal');
+            srLoadResultsBrowser();
+        };
+
+    } catch(e) {
+        document.getElementById('srRRNewResult').innerHTML =
+            `<p style="color:#ef4444;font-size:0.8rem;">❌ Research failed: ${e.message}</p>`;
+    }
+}
+
+function srFormatRRCurrent(row, currency) {
+    const isNA = row.years_experience === 'Role N/A' || (row.low_salary == null && row.median_salary == null);
+    if (isNA) return `<span style="color:#ef4444;font-weight:600;">Role N/A</span> <span style="font-size:0.75rem;color:var(--text-muted);">(confidence: ${row.conf_median || '—'})</span>`;
+    const fmt = n => n != null ? Number(n).toLocaleString() : '—';
+    return `
+        <div style="font-size:0.78rem;">
+            <span style="color:var(--text-muted);">Exp:</span> ${row.years_experience || '—'} &nbsp;
+            <span style="color:var(--text-muted);">Low:</span> ${fmt(row.low_salary)} &nbsp;
+            <span style="font-weight:600;">Median: ${fmt(row.median_salary)}</span> &nbsp;
+            <span style="color:var(--text-muted);">High:</span> ${fmt(row.high_salary)} ${currency}
+            &nbsp; <span style="font-size:0.72rem;color:var(--text-muted);">Conf: ${row.conf_median || '—'}</span>
+        </div>`;
+}
+
+function srFormatRRNew(result, currency, isNA) {
+    if (isNA) return `
+        <span style="color:#ef4444;font-weight:600;">Role N/A (confirmed)</span>
+        <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;">
+            A more thorough search still could not find this role in this market.
+            Accept to record this as a confirmed N/A, or close to keep the existing result.
+        </p>`;
+    const fmt = n => n != null ? Number(n).toLocaleString() : '—';
+    const confCol = c => c === 'High' ? '#22c55e' : c === 'Medium' ? '#f59e0b' : '#ef4444';
+    return `
+        <div style="font-size:0.78rem;">
+            <span style="color:var(--text-muted);">Exp:</span> ${result.years_experience || '—'} &nbsp;
+            <span style="color:var(--text-muted);">Low:</span> ${fmt(result.low_salary)} &nbsp;
+            <span style="font-weight:600;">Median: ${fmt(result.median_salary)}</span> &nbsp;
+            <span style="color:var(--text-muted);">High:</span> ${fmt(result.high_salary)} ${currency}
+        </div>
+        <div style="font-size:0.72rem;margin-top:0.25rem;">
+            Confidence — Exp: <span style="color:${confCol(result.conf_experience)};font-weight:600;">${result.conf_experience||'—'}</span>
+            &nbsp; Low: <span style="color:${confCol(result.conf_low)};font-weight:600;">${result.conf_low||'—'}</span>
+            &nbsp; Median: <span style="color:${confCol(result.conf_median)};font-weight:600;">${result.conf_median||'—'}</span>
+            &nbsp; High: <span style="color:${confCol(result.conf_high)};font-weight:600;">${result.conf_high||'—'}</span>
+        </div>`;
+}
+
+function srEditRole(rowId) {
+    const row = srResultsCache.find(r => r.id === rowId);
+    if (!row) { alert('Row not found — please reload the browser tab.'); return; }
+
+    const market  = row.market;
+    const mktInfo = SR_MARKETS.find(m => m.code === market);
+
+    document.getElementById('srEditRoleId').value        = rowId;
+    document.getElementById('srEditMarket').value        = market;
+    document.getElementById('srEditJobTitle').textContent = row.job_title;
+    document.getElementById('srEditMarketLabel').textContent = mktInfo ? `${mktInfo.label} (${mktInfo.currency})` : market;
+    document.getElementById('srEditYears').value         = row.years_experience || '';
+    document.getElementById('srEditLow').value           = row.low_salary    ?? '';
+    document.getElementById('srEditMedian').value        = row.median_salary ?? '';
+    document.getElementById('srEditHigh').value          = row.high_salary   ?? '';
+    document.getElementById('srEditConfExp').value       = row.conf_experience || '';
+    document.getElementById('srEditConfLow').value       = row.conf_low       || '';
+    document.getElementById('srEditConfMedian').value    = row.conf_median    || '';
+    document.getElementById('srEditConfHigh').value      = row.conf_high      || '';
+
+    showModal('srEditRoleModal');
+}
+
+async function srSaveEditedRole() {
+    const rowId  = parseInt(document.getElementById('srEditRoleId').value);
+    const market = document.getElementById('srEditMarket').value;
+    const row    = srResultsCache.find(r => r.id === rowId);
+    if (!row) { alert('Row not found.'); return; }
+
+    const updates = {
+        years_experience: document.getElementById('srEditYears').value.trim()  || null,
+        low_salary:       parseFloat(document.getElementById('srEditLow').value)    || null,
+        median_salary:    parseFloat(document.getElementById('srEditMedian').value) || null,
+        high_salary:      parseFloat(document.getElementById('srEditHigh').value)   || null,
+        conf_experience:  document.getElementById('srEditConfExp').value    || null,
+        conf_low:         document.getElementById('srEditConfLow').value    || null,
+        conf_median:      document.getElementById('srEditConfMedian').value || null,
+        conf_high:        document.getElementById('srEditConfHigh').value   || null,
+        run_id:           row.run_id + '-edited',
+    };
+
+    // Check if setting to Role N/A
+    const isNA = document.getElementById('srEditYears').value.trim() === 'Role N/A';
+    if (isNA) {
+        updates.low_salary = null; updates.median_salary = null; updates.high_salary = null;
+        updates.conf_experience = 'Low'; updates.conf_low = null; updates.conf_median = null; updates.conf_high = null;
+    }
+
+    const saveBtn = document.getElementById('srEditSaveBtn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
+    try {
+        const { error } = await supabaseClient
+            .from('salary_research')
+            .update(updates)
+            .eq('id', rowId);
+        if (error) throw new Error(error.message);
+        hideModal('srEditRoleModal');
+        srLoadResultsBrowser();
+    } catch(e) {
+        alert('Save failed: ' + e.message);
+    } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Save Changes'; }
+    }
+}
+
+async function srSaveSingleResult(originalRow, newResult, market) {
+    const runId = `${new Date().toISOString().slice(0,10)}-${market}-reresearch`;
+    // Archive the old record
+    await supabaseClient
+        .from('salary_research')
+        .update({ is_current: false })
+        .eq('id', originalRow.id);
+    // Insert new record
+    const { error } = await supabaseClient
+        .from('salary_research')
+        .insert([{
+            jpid_level:       originalRow.jpid_level,
+            job_title:        newResult.job_title || originalRow.job_title,
+            category:         originalRow.category,
+            batch:            originalRow.batch,
+            market:           market,
+            years_experience: newResult.years_experience,
+            low_salary:       newResult.low_salary,
+            median_salary:    newResult.median_salary,
+            high_salary:      newResult.high_salary,
+            conf_experience:  newResult.conf_experience,
+            conf_low:         newResult.conf_low,
+            conf_median:      newResult.conf_median,
+            conf_high:        newResult.conf_high,
+            researched_at:    new Date().toISOString(),
+            run_id:           runId,
+            is_current:       true,
+        }]);
+    if (error) throw new Error(error.message);
 }
 
 // ── Export Tab ──────────────────────────────────────

@@ -1373,6 +1373,9 @@
                         <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
                             <input type="checkbox" id="srBrowserStale" onchange="srLoadResultsBrowser()"> Stale only (&gt;7 days)
                         </label>
+                        <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+                            <input type="checkbox" id="srBrowserNAOnly" onchange="srLoadResultsBrowser()"> Role N/A only
+                        </label>
                         <span id="srBrowserStatus" style="font-size:0.75rem;color:var(--text-muted);margin-left:auto;"></span>
                     </div>
                     <!-- Table -->
@@ -1390,10 +1393,11 @@
                                     <th style="padding:0.5rem;text-align:center;">Conf</th>
                                     <th style="padding:0.5rem;text-align:left;">Age</th>
                                     <th style="padding:0.5rem;text-align:left;">Run ID</th>
+                                    <th style="padding:0.5rem;text-align:center;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="srBrowserBody">
-                                <tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-muted);">Click browser tab to load results.</td></tr>
+                                <tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text-muted);">Click browser tab to load results.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1477,6 +1481,108 @@
             </div>
 
         </div><!-- /page-salary-research -->
+
+    <!-- Salary Research — Re-research Modal -->
+    <div class="modal-overlay" id="srReResearchModal">
+        <div class="modal" style="max-width:560px;">
+            <div class="modal-header">
+                <h2>🔄 Re-research Role</h2>
+                <button class="modal-close" onclick="hideModal('srReResearchModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:0.82rem;margin-bottom:1rem;">
+                    <strong id="srRRTitle"></strong>
+                    <span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem;">— <span id="srRRMarket"></span></span>
+                </p>
+                <div style="margin-bottom:1rem;">
+                    <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.4rem;">Current Result</div>
+                    <div id="srRRCurrentResult" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.75rem;"></div>
+                </div>
+                <div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.4rem;">New Result</div>
+                    <div id="srRRNewResult" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.75rem;min-height:48px;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="srRRAcceptBtn" class="btn btn-primary" style="display:none;">✓ Accept New Result</button>
+                <button class="btn btn-secondary" onclick="hideModal('srReResearchModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Salary Research — Manual Edit Modal -->
+    <div class="modal-overlay" id="srEditRoleModal">
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <h2>✏️ Edit Result</h2>
+                <button class="modal-close" onclick="hideModal('srEditRoleModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="srEditRoleId">
+                <input type="hidden" id="srEditMarket">
+                <p style="font-size:0.82rem;font-weight:600;margin-bottom:0.25rem;" id="srEditJobTitle"></p>
+                <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:1rem;" id="srEditMarketLabel"></p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <label style="font-size:0.78rem;">Years Experience <span style="color:var(--text-muted);font-weight:400;">(type "Role N/A" to mark as not applicable)</span></label>
+                        <input type="text" id="srEditYears" placeholder='e.g. "1-3 years" or "Role N/A"' style="font-size:0.82rem;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.78rem;">Low Salary</label>
+                        <input type="number" id="srEditLow" placeholder="e.g. 3200000" style="font-size:0.82rem;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.78rem;">Median Salary</label>
+                        <input type="number" id="srEditMedian" placeholder="e.g. 4500000" style="font-size:0.82rem;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.78rem;">High Salary</label>
+                        <input type="number" id="srEditHigh" placeholder="e.g. 6000000" style="font-size:0.82rem;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.78rem;">Conf — Experience</label>
+                        <select id="srEditConfExp" style="font-size:0.82rem;">
+                            <option value="">—</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.78rem;">Conf — Low</label>
+                        <select id="srEditConfLow" style="font-size:0.82rem;">
+                            <option value="">—</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.78rem;">Conf — Median</label>
+                        <select id="srEditConfMedian" style="font-size:0.82rem;">
+                            <option value="">—</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.78rem;">Conf — High</label>
+                        <select id="srEditConfHigh" style="font-size:0.82rem;">
+                            <option value="">—</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="srEditSaveBtn" class="btn btn-primary" onclick="srSaveEditedRole()">💾 Save Changes</button>
+                <button class="btn btn-secondary" onclick="hideModal('srEditRoleModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Salary Research — API Key Modal -->
     <div class="modal-overlay" id="srApiKeyModal">
