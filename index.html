@@ -610,11 +610,20 @@
         <div class="page" id="page-salary-ranges">
             <div class="page-header">
                 <h1>Roles &amp; Salaries</h1>
-                <p>Philippines salary data — 1,899 roles across 39 categories</p>
+                <p>Salary data across all markets — sourced from Salary Research and published to calculators</p>
+            </div>
+            <!-- Market Tabs -->
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+                <button class="btn btn-primary btn-sm" id="salaryTabPH" onclick="switchSalaryMarket('PH')" style="font-size:0.8rem;"><img src="https://flagcdn.com/16x12/ph.png" width="16" height="12" style="vertical-align:middle;margin-right:5px;">Philippines</button>
+                <button class="btn btn-secondary btn-sm" id="salaryTabCO" onclick="switchSalaryMarket('CO')" style="font-size:0.8rem;"><img src="https://flagcdn.com/16x12/co.png" width="16" height="12" style="vertical-align:middle;margin-right:5px;">Colombia</button>
+                <button class="btn btn-secondary btn-sm" id="salaryTabIN" onclick="switchSalaryMarket('IN')" style="font-size:0.8rem;"><img src="https://flagcdn.com/16x12/in.png" width="16" height="12" style="vertical-align:middle;margin-right:5px;">India</button>
+                <button class="btn btn-secondary btn-sm" id="salaryTabKE" onclick="switchSalaryMarket('KE')" style="font-size:0.8rem;"><img src="https://flagcdn.com/16x12/ke.png" width="16" height="12" style="vertical-align:middle;margin-right:5px;">Kenya</button>
+                <button class="btn btn-secondary btn-sm" id="salaryTabAU" onclick="switchSalaryMarket('AU')" style="font-size:0.8rem;"><img src="https://flagcdn.com/16x12/au.png" width="16" height="12" style="vertical-align:middle;margin-right:5px;">Australia</button>
+                <button class="btn btn-secondary btn-sm" id="salaryTabUSA" onclick="switchSalaryMarket('USA')" style="font-size:0.8rem;"><img src="https://flagcdn.com/16x12/us.png" width="16" height="12" style="vertical-align:middle;margin-right:5px;">USA</button>
             </div>
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
-                    <div class="card-title" style="margin-bottom: 0;">💰 Salary Ranges (PHP)</div>
+                    <div class="card-title" style="margin-bottom: 0;">💰 Salary Ranges</div>
                     <button class="btn btn-primary btn-sm" onclick="showAddSalaryModal()">+ Add Role</button>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.75rem; margin-bottom: 1rem;">
@@ -634,9 +643,9 @@
                             <th>JPID Level</th>
                             <th>Job Title</th>
                             <th>Experience</th>
-                            <th style="text-align:right;">Low (PHP)</th>
-                            <th style="text-align:right;">Median (PHP)</th>
-                            <th style="text-align:right;">High (PHP)</th>
+                            <th style="text-align:right;" id="salaryThLow">Low (PHP)</th>
+                            <th style="text-align:right;" id="salaryThMedian">Median (PHP)</th>
+                            <th style="text-align:right;" id="salaryThHigh">High (PHP)</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -1289,6 +1298,7 @@
                 <button id="srTabBtn-export" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('export')" style="font-size:0.8rem;">⬇ Export</button>
                 <button id="srTabBtn-history" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('history')" style="font-size:0.8rem;">📋 Run History</button>
                 <button id="srTabBtn-prompts" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('prompts')" style="font-size:0.8rem;">✏️ Prompts</button>
+                <button id="srTabBtn-publish" class="btn btn-secondary btn-sm sr-tab-btn" onclick="srSwitchTab('publish')" style="font-size:0.8rem;">📤 Publish</button>
             </div>
 
             <!-- ── TAB: RUN ── -->
@@ -1433,6 +1443,21 @@
                                 <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Click History tab to load.</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── TAB: PUBLISH ── -->
+            <div id="srTab-publish" class="sr-tab-panel" style="display:none;">
+                <div class="card">
+                    <div class="card-title" style="margin-bottom:0.5rem;">📤 Publish to Salary Ranges</div>
+                    <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                        Publish copies research results from the <strong>salary_research</strong> table into the <strong>salary_ranges</strong> table used by the calculators.
+                        Only roles with salary data are published — "Role N/A" entries are skipped.
+                        Admin only. Each publish replaces all existing data for that market.
+                    </p>
+                    <div id="srPublishStatusWrap">
+                        <p style="font-size:0.8rem;color:var(--text-muted);">Click the Publish tab to load coverage summary.</p>
                     </div>
                 </div>
             </div>

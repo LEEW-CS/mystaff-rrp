@@ -1,17 +1,42 @@
 // =====================================================
-// SALARY RANGES CRUD
-// =====================================================
-// =====================================================
-// SALARY RANGES CRUD
+// SALARY RANGES CRUD — multi-market
 // =====================================================
 let salaryAllData = [];
 let salaryFiltered = [];
 let salaryCurrentPage = 1;
 const SALARY_PAGE_SIZE = 50;
+let salaryCurrentMarket = 'PH';
+
+const SALARY_MARKET_CONFIG = {
+    PH:  { label: 'Philippines', currency: 'PHP', symbol: '₱',  flag: 'ph' },
+    CO:  { label: 'Colombia',    currency: 'COP', symbol: 'COP ', flag: 'co' },
+    IN:  { label: 'India',       currency: 'INR', symbol: '₹',  flag: 'in' },
+    KE:  { label: 'Kenya',       currency: 'KES', symbol: 'KES ', flag: 'ke' },
+    AU:  { label: 'Australia',   currency: 'AUD', symbol: 'A$', flag: 'au' },
+    USA: { label: 'USA',         currency: 'USD', symbol: '$',  flag: 'us' },
+};
+
+function switchSalaryMarket(market) {
+    salaryCurrentMarket = market;
+    // Update tab button styles
+    Object.keys(SALARY_MARKET_CONFIG).forEach(m => {
+        const btn = document.getElementById(`salaryTab${m}`);
+        if (btn) {
+            btn.classList.toggle('btn-primary', m === market);
+            btn.classList.toggle('btn-secondary', m !== market);
+        }
+    });
+    // Update currency column headers
+    const cfg = SALARY_MARKET_CONFIG[market];
+    ['Low','Median','High'].forEach(col => {
+        const th = document.getElementById(`salaryTh${col}`);
+        if (th) th.textContent = `${col} (${cfg.currency})`;
+    });
+    loadSalaryRanges();
+}
 
 async function loadSalaryRanges() {
     try {
-        // Paginate in batches of 500 to bypass Supabase server-side row limits
         const PAGE = 500;
         let allRows = [];
         let from = 0;
@@ -21,6 +46,7 @@ async function loadSalaryRanges() {
             const { data, error } = await supabaseClient
                 .from('salary_ranges')
                 .select('*')
+                .eq('market', salaryCurrentMarket)
                 .order('category')
                 .order('job_title')
                 .range(from, from + PAGE - 1);
@@ -30,7 +56,7 @@ async function loadSalaryRanges() {
             if (data && data.length > 0) {
                 allRows = allRows.concat(data);
                 from += PAGE;
-                keepFetching = data.length === PAGE; // stop if fewer than PAGE returned
+                keepFetching = data.length === PAGE;
             } else {
                 keepFetching = false;
             }
@@ -48,8 +74,8 @@ async function loadSalaryRanges() {
         salaryCurrentPage = 1;
         renderSalaryTable();
 
-        // Also populate the calculator's category browse dropdown
-        populateRoleBrowseCategories();
+        // Populate PH calculator role browse if on PH market
+        if (salaryCurrentMarket === 'PH') populateRoleBrowseCategories();
 
     } catch (error) {
         console.error('Error loading salary ranges:', error);
@@ -106,7 +132,8 @@ function renderSalaryTable() {
         return;
     }
 
-    const fmt = v => v != null ? '₱' + parseInt(v).toLocaleString() : '-';
+    const cfg = SALARY_MARKET_CONFIG[salaryCurrentMarket] || SALARY_MARKET_CONFIG.PH;
+    const fmt = v => v != null ? cfg.symbol + parseInt(v).toLocaleString() : '-';
 
     tbody.innerHTML = page.map(item => `
         <tr>
@@ -152,7 +179,7 @@ async function addSalaryRange() {
     try {
         const { error } = await supabaseClient
             .from('salary_ranges')
-            .insert([{ category, jpid_level, job_title, years_experience, low_salary, median_salary, high_salary }]);
+            .insert([{ category, jpid_level, job_title, years_experience, low_salary, median_salary, high_salary, market: salaryCurrentMarket }]);
 
         if (error) throw error;
 

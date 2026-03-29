@@ -1431,6 +1431,167 @@ async function srLoadRunHistory() {
     }
 }
 
+// ── Publish Tab ─────────────────────────────────────
+async function srLoadPublishTab() {
+    const wrap = document.getElementById('srPublishStatusWrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted);">Loading research coverage…</p>';
+
+    try {
+        // Get counts from salary_research (is_current) per market
+        const researchCounts = {};
+        for (const mkt of SR_MARKETS) {
+            const { count, error } = await supabaseClient
+                .from('salary_research')
+                .select('id', { count: 'exact', head: true })
+                .eq('market', mkt.code)
+                .eq('is_current', true);
+            researchCounts[mkt.code] = error ? 0 : (count || 0);
+        }
+
+        // Get counts already published to salary_ranges per market
+        const publishedCounts = {};
+        for (const mkt of SR_MARKETS) {
+            const { count, error } = await supabaseClient
+                .from('salary_ranges')
+                .select('id', { count: 'exact', head: true })
+                .eq('market', mkt.code);
+            publishedCounts[mkt.code] = error ? 0 : (count || 0);
+        }
+
+        const totalRoles = srAllRoles.length;
+
+        wrap.innerHTML = `
+            <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                <thead>
+                    <tr style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--border);">
+                        <th style="padding:0.5rem;text-align:left;">Market</th>
+                        <th style="padding:0.5rem;text-align:right;">Researched</th>
+                        <th style="padding:0.5rem;text-align:right;">Total Roles</th>
+                        <th style="padding:0.5rem;text-align:right;">Coverage</th>
+                        <th style="padding:0.5rem;text-align:right;">Published</th>
+                        <th style="padding:0.5rem;text-align:center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${SR_MARKETS.map(mkt => {
+                        const researched  = researchCounts[mkt.code] || 0;
+                        const published   = publishedCounts[mkt.code] || 0;
+                        const pct         = totalRoles > 0 ? Math.round(researched / totalRoles * 100) : 0;
+                        const isAdmin     = currentUser && currentUser.role === 'Admin';
+                        const canPublish  = isAdmin && researched > 0;
+                        const barColor    = pct >= 90 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+                        return `<tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:0.6rem 0.5rem;">
+                                <img src="https://flagcdn.com/16x12/${mkt.flag}.png" width="16" height="12" style="vertical-align:middle;margin-right:6px;">
+                                <strong>${mkt.label}</strong>
+                                <span style="font-size:0.7rem;color:var(--text-muted);margin-left:4px;">${mkt.currency}</span>
+                            </td>
+                            <td style="padding:0.6rem 0.5rem;text-align:right;font-family:'Space Mono',monospace;">${researched.toLocaleString()}</td>
+                            <td style="padding:0.6rem 0.5rem;text-align:right;font-family:'Space Mono',monospace;color:var(--text-muted);">${totalRoles.toLocaleString()}</td>
+                            <td style="padding:0.6rem 0.5rem;text-align:right;">
+                                <div style="display:inline-flex;align-items:center;gap:0.4rem;">
+                                    <div style="width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+                                        <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;"></div>
+                                    </div>
+                                    <span style="font-size:0.75rem;font-weight:600;color:${barColor};">${pct}%</span>
+                                </div>
+                            </td>
+                            <td style="padding:0.6rem 0.5rem;text-align:right;font-family:'Space Mono',monospace;color:${published>0?'#22c55e':'var(--text-muted)'};">
+                                ${published > 0 ? published.toLocaleString() : '—'}
+                            </td>
+                            <td style="padding:0.6rem 0.5rem;text-align:center;">
+                                ${canPublish
+                                    ? `<button class="btn btn-primary btn-sm" onclick="srPublishMarket('${mkt.code}')" style="font-size:0.75rem;">
+                                        📤 Publish ${mkt.code}
+                                       </button>`
+                                    : `<span style="font-size:0.72rem;color:var(--text-muted);">${researched === 0 ? 'No data yet' : 'Admin only'}</span>`
+                                }
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+            <p style="font-size:0.75rem;color:var(--text-muted);margin-top:1rem;">
+                Publish copies current research results into the Salary Ranges table used by the calculators. Existing entries for that market are replaced. PH data already in Salary Ranges is not affected by publishing other markets.
+            </p>
+        `;
+    } catch(e) {
+        wrap.innerHTML = `<p style="color:#ef4444;font-size:0.8rem;">Error loading publish status: ${e.message}</p>`;
+    }
+}
+
+async function srPublishMarket(market) {
+    const mktInfo = SR_MARKETS.find(m => m.code === market);
+    const label   = mktInfo ? mktInfo.label : market;
+
+    // 1. Load all current research rows for this market
+    srLog(`📤 Loading research data for ${label}…`, 'info');
+    let rows = [], offset = 0;
+    while (true) {
+        const { data, error } = await supabaseClient
+            .from('salary_research')
+            .select('jpid_level, job_title, category, batch, years_experience, low_salary, median_salary, high_salary, conf_median')
+            .eq('market', market)
+            .eq('is_current', true)
+            .range(offset, offset + 999);
+        if (error) { alert('Error reading research data: ' + error.message); return; }
+        rows = rows.concat(data || []);
+        if (!data || data.length < 1000) break;
+        offset += 1000;
+    }
+
+    if (!rows.length) { alert(`No current research data found for ${label}.`); return; }
+
+    // Filter out Role N/A entries (null salaries)
+    const publishable = rows.filter(r => r.low_salary != null || r.median_salary != null || r.high_salary != null);
+    const naCount     = rows.length - publishable.length;
+
+    if (!confirm(`Publish ${publishable.length} roles to Salary Ranges for ${label}?
+${naCount > 0 ? `(${naCount} "Role N/A" entries will be skipped)
+` : ''}This will replace all existing ${label} salary data in the calculator.`)) return;
+
+    try {
+        // 2. Delete existing salary_ranges rows for this market
+        const { error: delErr } = await supabaseClient
+            .from('salary_ranges')
+            .delete()
+            .eq('market', market);
+        if (delErr) throw new Error('Delete failed: ' + delErr.message);
+
+        // 3. Insert new rows in batches of 500
+        const insertRows = publishable.map(r => ({
+            jpid_level:      r.jpid_level,
+            job_title:       r.job_title,
+            category:        r.category,
+            batch:           r.batch,
+            market:          market,
+            years_experience: r.years_experience,
+            low_salary:      r.low_salary,
+            median_salary:   r.median_salary,
+            high_salary:     r.high_salary,
+        }));
+
+        const BATCH = 500;
+        for (let i = 0; i < insertRows.length; i += BATCH) {
+            const chunk = insertRows.slice(i, i + BATCH);
+            const { error: insErr } = await supabaseClient.from('salary_ranges').insert(chunk);
+            if (insErr) throw new Error(`Insert failed at row ${i}: ` + insErr.message);
+        }
+
+        srLog(`✅ Published ${insertRows.length} ${label} roles to Salary Ranges`, 'success');
+        alert(`✅ ${insertRows.length} ${label} roles published to Salary Ranges successfully!${naCount > 0 ? `
+${naCount} "Role N/A" entries skipped.` : ''}`);
+
+        // Refresh publish status table
+        srLoadPublishTab();
+
+    } catch(e) {
+        srLog(`❌ Publish failed: ${e.message}`, 'error');
+        alert('Publish failed: ' + e.message);
+    }
+}
+
 // ── Tab Switching ────────────────────────────────────
 function srSwitchTab(tab) {
     document.querySelectorAll('.sr-tab-panel').forEach(el => el.style.display = 'none');
@@ -1446,6 +1607,7 @@ function srSwitchTab(tab) {
     if (tab === 'browser') srLoadResultsBrowser();
     if (tab === 'history') srLoadRunHistory();
     if (tab === 'prompts') srInitPromptTab();
+    if (tab === 'publish') srLoadPublishTab();
 }
 
 // ── Helpers ──────────────────────────────────────────

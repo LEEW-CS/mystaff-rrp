@@ -149,16 +149,31 @@ function updateCONightMealsDefault() {
 
 async function loadCOSalaryRoles() {
     try {
-        const { data, error } = await supabaseClient
-            .from('salary_ranges_co')
-            .select('*')
-            .order('category')
-            .order('job_title');
-        if (error) throw error;
-        coSalaryRolesData = data || [];
+        // Paginate — salary_ranges may have many CO rows after publish
+        let all = [], offset = 0;
+        while (true) {
+            const { data, error } = await supabaseClient
+                .from('salary_ranges')
+                .select('id, jpid_level, job_title, category, years_experience, low_salary, median_salary, high_salary')
+                .eq('market', 'CO')
+                .order('category')
+                .order('job_title')
+                .range(offset, offset + 999);
+            if (error) throw error;
+            all = all.concat(data || []);
+            if (!data || data.length < 1000) break;
+            offset += 1000;
+        }
+        // Normalise field names to match what the role search functions expect
+        coSalaryRolesData = all.map(r => ({
+            ...r,
+            salary_low:  r.low_salary,
+            salary_high: r.high_salary,
+            experience:  r.years_experience,
+        }));
         populateCORoleBrowseCategories();
     } catch(e) {
-        console.warn('CO salary roles not loaded (table may not exist yet):', e.message);
+        console.warn('CO salary roles not loaded:', e.message);
         coSalaryRolesData = [];
     }
 }
@@ -230,16 +245,15 @@ function onCORoleBrowseSelect() {
     document.getElementById('coRoleSearchInput').value = match.job_title;
     document.getElementById('coSelectedRoleId').value = match.id;
     document.getElementById('coRoleName').value = '';
-    // Set salary range
-    if (match.salary_low) document.getElementById('coBaseSalaryFrom').value = match.salary_low;
-    if (match.salary_high) document.getElementById('coBaseSalaryTo').value = match.salary_high;
+    // Set salary range from low/high
+    if (match.salary_low)  document.getElementById('coBaseSalaryFrom').value = match.salary_low;
+    if (match.salary_high) document.getElementById('coBaseSalaryTo').value   = match.salary_high;
     // Show hint
     const hint = document.getElementById('coSalaryRangeHint');
     if (hint && matches.length > 0) {
         const expLabels = matches.map(m => m.experience || '').filter(Boolean);
-        hint.textContent = expLabels.length
-            ? `${match.category} · ${expLabels.join(' / ')}`
-            : match.category;
+        const medianStr = match.median_salary ? ' · Median: COP ' + parseInt(match.median_salary).toLocaleString() : '';
+        hint.textContent = (expLabels.length ? `${match.category} · ${expLabels.join(' / ')}` : match.category) + medianStr;
         hint.style.display = 'block';
     }
     // Update pill
@@ -280,11 +294,12 @@ function selectCORole(role) {
     document.getElementById('coSelectedRoleId').value = role.id;
     document.getElementById('coRoleName').value = '';
     document.getElementById('coRoleDropdown').classList.remove('open');
-    if (role.salary_low) document.getElementById('coBaseSalaryFrom').value = role.salary_low;
-    if (role.salary_high) document.getElementById('coBaseSalaryTo').value = role.salary_high;
+    if (role.salary_low)  document.getElementById('coBaseSalaryFrom').value = role.salary_low;
+    if (role.salary_high) document.getElementById('coBaseSalaryTo').value   = role.salary_high;
     const hint = document.getElementById('coSalaryRangeHint');
     if (hint) {
-        hint.textContent = (role.category || '') + (role.experience ? ' · ' + role.experience : '');
+        const medianStr = role.median_salary ? ' · Median: COP ' + parseInt(role.median_salary).toLocaleString() : '';
+        hint.textContent = (role.category || '') + (role.experience ? ' · ' + role.experience : '') + medianStr;
         hint.style.display = 'block';
     }
     const pill = document.getElementById('coSelectedRolePill');
