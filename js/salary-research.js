@@ -51,6 +51,10 @@ const SR_MARKETS = [
     { code: 'USA', label: 'USA',         flag: 'us', currency: 'USD' },
 ];
 
+// Max roles per Edge Function call — keeps each call well under the 150s timeout.
+// Large IT batches (90+ roles) will be split into multiple chunks automatically.
+const SR_CHUNK_SIZE = 35;
+
 // ── System Prompts (one per market) ────────────────
 const SR_PROMPTS = {
 PH: `You are an expert Philippines Salary Research Assistant.
@@ -434,14 +438,24 @@ function srUpdateRunSummary() {
         el.innerHTML = '<span style="color:#ef4444;">No batches selected — click batch chips above to select.</span>';
         return;
     }
+    // Count total API calls accounting for chunking
+    const activeBatches = srGetActiveBatches();
+    let totalApiCalls = 0;
+    activeBatches.forEach(batch => {
+        const batchRoles = srAllRoles.filter(r => r.batch === batch);
+        totalApiCalls += Math.ceil(batchRoles.length / SR_CHUNK_SIZE);
+    });
+    const chunkedNote = totalApiCalls > batchCount
+        ? `<span style="color:var(--text-muted);font-size:0.75rem;"> (${batchCount} batches split into ${totalApiCalls} API calls — chunks of ${SR_CHUNK_SIZE})</span>`
+        : '';
     el.innerHTML = `
         <strong>${roles.length}</strong> roles across
         <strong>${batchCount}</strong> batches →
-        <strong>${batchCount}</strong> API calls for
+        <strong>${totalApiCalls}</strong> API calls for
         <strong>${market ? market.label : srSelectedMarket}</strong>
         <span style="color:var(--text-muted);font-size:0.78rem;margin-left:0.5rem;">
-            (est. ${Math.round(batchCount * 45)}–${Math.round(batchCount * 90)} seconds)
-        </span>
+            (est. ${Math.round(totalApiCalls * 45)}–${Math.round(totalApiCalls * 90)} seconds)
+        </span>${chunkedNote}
     `;
 }
 
@@ -529,6 +543,13 @@ async function srStartResearch() {
     const batches = srGetActiveBatches();
     const runId = `${new Date().toISOString().slice(0,10)}-${market}`;
 
+    // Pre-calculate total API calls (batches may be split into chunks)
+    let totalApiCalls = 0;
+    batches.forEach(batch => {
+        const batchRoles = roles.filter(r => r.batch === batch);
+        totalApiCalls += Math.ceil(batchRoles.length / SR_CHUNK_SIZE);
+    });
+
     srRunning = true;
     srAbortFlag = false;
     srCurrentRunId = runId;
@@ -536,15 +557,16 @@ async function srStartResearch() {
     // UI state
     document.getElementById('srRunBtn').disabled = true;
     document.getElementById('srAbortBtn').style.display = '';
+    document.getElementById('srAbortBtn').disabled = false;
     document.getElementById('srProgressWrap').style.display = '';
     document.getElementById('srLogWrap').style.display = '';
     document.getElementById('srLogLines').innerHTML = '';
-    srSetProgress(0, batches.length);
+    srSetProgress(0, totalApiCalls);
 
-    srLog(`🚀 Starting ${marketInfo.label} research — ${roles.length} roles in ${batches.length} batches`, 'info');
+    srLog(`🚀 Starting ${marketInfo.label} research — ${roles.length} roles in ${batches.length} batches (${totalApiCalls} API calls, chunks of ${SR_CHUNK_SIZE})`, 'info');
     srLog(`Run ID: ${runId}`, 'muted');
 
-    let completed = 0;
+    let completedCalls = 0;
     let totalSaved = 0;
     let errors = 0;
 
@@ -556,27 +578,65 @@ async function srStartResearch() {
 
         const batch = batches[i];
         const batchRoles = roles.filter(r => r.batch === batch);
-        if (!batchRoles.length) { completed++; srSetProgress(completed, batches.length); continue; }
+        if (!batchRoles.length) continue;
 
-        srLog(`📦 ${batch} — ${batchRoles.length} roles…`, 'info');
-
-        try {
-            const results = await srResearchBatch(batchRoles, market);
-            if (!results) throw new Error('No results returned');
-
-            // Save to Supabase
-            const saved = await srSaveResults(results, batchRoles, market, batch, runId);
-            totalSaved += saved;
-            srLog(`  ✅ Saved ${saved} results`, 'success');
-        } catch(e) {
-            errors++;
-            srLog(`  ❌ ${batch} failed: ${e.message}`, 'error');
+        // Split batch into chunks to stay under Edge Function timeout
+        const chunks = [];
+        for (let c = 0; c < batchRoles.length; c += SR_CHUNK_SIZE) {
+            chunks.push(batchRoles.slice(c, c + SR_CHUNK_SIZE));
         }
 
-        completed++;
-        srSetProgress(completed, batches.length);
+        const chunkWord = chunks.length > 1 ? `${chunks.length} chunks` : '1 chunk';
+        srLog(`📦 ${batch} — ${batchRoles.length} roles (${chunkWord})…`, 'info');
 
-        // Polite delay between calls
+        const allBatchResults = [];
+        let batchFailed = false;
+
+        for (let c = 0; c < chunks.length; c++) {
+            if (srAbortFlag) break;
+
+            const chunk = chunks[c];
+            const chunkLabel = chunks.length > 1 ? ` chunk ${c + 1}/${chunks.length} (${chunk.length} roles)` : ` ${chunk.length} roles`;
+
+            try {
+                srLog(`  ⏳${chunkLabel}…`, 'muted');
+                const results = await srResearchBatch(chunk, market);
+                if (!results) throw new Error('No results returned');
+                allBatchResults.push(...results.map((res, idx) => ({ res, role: chunk[idx] })));
+                srLog(`  ✅${chunkLabel} — done`, 'success');
+            } catch(e) {
+                errors++;
+                batchFailed = true;
+                srLog(`  ❌${chunkLabel} failed: ${e.message}`, 'error');
+            }
+
+            completedCalls++;
+            srSetProgress(completedCalls, totalApiCalls);
+
+            // Polite delay between chunk calls
+            if (c < chunks.length - 1 && !srAbortFlag) {
+                await srDelay(1500);
+            }
+        }
+
+        // Save whatever results we collected (partial saves are fine — better than nothing)
+        if (allBatchResults.length > 0) {
+            try {
+                const resultsArr = allBatchResults.map(x => x.res);
+                const rolesArr   = allBatchResults.map(x => x.role);
+                const saved = await srSaveResults(resultsArr, rolesArr, market, batch, runId);
+                totalSaved += saved;
+                if (batchFailed) {
+                    srLog(`  ⚠️ ${batch} — saved ${saved} of ${batchRoles.length} results (some chunks failed)`, 'warn');
+                } else {
+                    srLog(`  💾 ${batch} — saved ${saved} results`, 'success');
+                }
+            } catch(e) {
+                srLog(`  ❌ ${batch} — save failed: ${e.message}`, 'error');
+            }
+        }
+
+        // Delay between batches (not after the last one)
         if (i < batches.length - 1 && !srAbortFlag) {
             await srDelay(1500);
         }
@@ -587,7 +647,7 @@ async function srStartResearch() {
     document.getElementById('srAbortBtn').style.display = 'none';
 
     const status = srAbortFlag ? 'aborted' : 'complete';
-    srLog(`\n🏁 Run ${status}. ${totalSaved} results saved. ${errors} batch errors.`, errors > 0 ? 'warn' : 'success');
+    srLog(`\n🏁 Run ${status}. ${totalSaved} results saved. ${errors} chunk errors.`, errors > 0 ? 'warn' : 'success');
 
     if (totalSaved > 0) {
         srLog(`💾 Data written to salary_research table under run_id: ${runId}`, 'muted');
