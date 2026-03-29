@@ -1308,6 +1308,12 @@
                 <div class="card" style="margin-bottom:1rem;">
                     <div class="card-title" style="margin-bottom:0.75rem;">3 · Run</div>
                     <div id="srRunSummary" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;"></div>
+                    <!-- Resume toggle -->
+                    <label style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;margin-bottom:1rem;font-size:0.82rem;" title="Skip batches that already have complete results saved. Useful after a failed or interrupted run.">
+                        <input type="checkbox" id="srResumeToggle" checked style="width:15px;height:15px;cursor:pointer;">
+                        <span>Resume mode — skip batches already complete</span>
+                        <span style="font-size:0.72rem;color:var(--text-muted);">(recommended)</span>
+                    </label>
                     <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
                         <button id="srRunBtn" class="btn btn-primary" onclick="srStartResearch()" style="font-size:0.85rem;">
                             ▶ Start Research Run

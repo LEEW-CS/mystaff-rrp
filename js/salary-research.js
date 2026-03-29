@@ -568,6 +568,26 @@ function srRenderRunTab() {
     srCheckApiKey();
 }
 
+// ── Resume helpers ───────────────────────────────────
+// Returns a Set of jpid_levels that already have is_current = true for this market
+async function srFetchCompletedJpids(market) {
+    const completed = new Set();
+    let offset = 0;
+    while (true) {
+        const { data, error } = await supabaseClient
+            .from('salary_research')
+            .select('jpid_level')
+            .eq('market', market)
+            .eq('is_current', true)
+            .range(offset, offset + 999);
+        if (error) throw error;
+        (data || []).forEach(r => { if (r.jpid_level) completed.add(r.jpid_level); });
+        if (!data || data.length < 1000) break;
+        offset += 1000;
+    }
+    return completed;
+}
+
 async function srStartResearch() {
     if (srRunning) return;
     if (!srApiKeyConfigured) { alert('API key not configured. Please set it via the Update Key button.'); return; }
@@ -579,13 +599,7 @@ async function srStartResearch() {
     const marketInfo = SR_MARKETS.find(m => m.code === market);
     const batches = srGetActiveBatches();
     const runId = `${new Date().toISOString().slice(0,10)}-${market}`;
-
-    // Pre-calculate total API calls (batches may be split into chunks)
-    let totalApiCalls = 0;
-    batches.forEach(batch => {
-        const batchRoles = roles.filter(r => r.batch === batch);
-        totalApiCalls += Math.ceil(batchRoles.length / SR_CHUNK_SIZE);
-    });
+    const resumeMode = document.getElementById('srResumeToggle')?.checked || false;
 
     srRunning = true;
     srAbortFlag = false;
@@ -598,35 +612,80 @@ async function srStartResearch() {
     document.getElementById('srProgressWrap').style.display = '';
     document.getElementById('srLogWrap').style.display = '';
     document.getElementById('srLogLines').innerHTML = '';
-    srSetProgress(0, totalApiCalls);
 
-    srLog(`🚀 Starting ${marketInfo.label} research — ${roles.length} roles in ${batches.length} batches (${totalApiCalls} API calls, chunks of ${SR_CHUNK_SIZE})`, 'info');
+    srLog(`🚀 Starting ${marketInfo.label} research — ${roles.length} roles in ${batches.length} batches`, 'info');
     srLog(`Run ID: ${runId}`, 'muted');
 
+    // ── Resume mode: fetch already-completed JPIDs ──
+    let completedJpids = new Set();
+    if (resumeMode) {
+        srLog('🔍 Resume mode ON — checking existing results…', 'muted');
+        try {
+            completedJpids = await srFetchCompletedJpids(market);
+            srLog(`  Found ${completedJpids.size} roles already completed for ${marketInfo.label}`, 'muted');
+        } catch(e) {
+            srLog(`  ⚠️ Could not load existing results — running all batches: ${e.message}`, 'warn');
+        }
+    }
+
+    // ── Build work plan: filter out already-done roles per batch ──
+    const workPlan = batches.map(batch => {
+        const allBatchRoles = roles.filter(r => r.batch === batch);
+        const pendingRoles  = resumeMode
+            ? allBatchRoles.filter(r => !completedJpids.has(r.jpid_level))
+            : allBatchRoles;
+        return { batch, allBatchRoles, pendingRoles };
+    });
+
+    // Total API calls based on pending work only
+    let totalApiCalls = 0;
+    workPlan.forEach(({ pendingRoles }) => {
+        if (pendingRoles.length) totalApiCalls += Math.ceil(pendingRoles.length / SR_CHUNK_SIZE);
+    });
+
+    const skippedBatches  = workPlan.filter(w => w.pendingRoles.length === 0).length;
+    const partialBatches  = workPlan.filter(w => w.pendingRoles.length > 0 && w.pendingRoles.length < w.allBatchRoles.length).length;
+
+    if (resumeMode) {
+        srLog(`  ${skippedBatches} batches complete ✅  ${partialBatches} partial ⚠️  ${batches.length - skippedBatches - partialBatches} not started`, 'muted');
+        srLog(`  ${totalApiCalls} API calls needed (chunks of ${SR_CHUNK_SIZE})`, 'muted');
+    } else {
+        srLog(`  ${totalApiCalls} API calls (chunks of ${SR_CHUNK_SIZE})`, 'muted');
+    }
+
+    srSetProgress(0, totalApiCalls);
     await srAcquireWakeLock();
 
     let completedCalls = 0;
     let totalSaved = 0;
+    let skipped = 0;
     let errors = 0;
 
-    for (let i = 0; i < batches.length; i++) {
+    for (let i = 0; i < workPlan.length; i++) {
         if (srAbortFlag) {
             srLog('⛔ Run aborted by user.', 'warn');
             break;
         }
 
-        const batch = batches[i];
-        const batchRoles = roles.filter(r => r.batch === batch);
-        if (!batchRoles.length) continue;
+        const { batch, allBatchRoles, pendingRoles } = workPlan[i];
 
-        // Split batch into chunks to stay under Edge Function timeout
-        const chunks = [];
-        for (let c = 0; c < batchRoles.length; c += SR_CHUNK_SIZE) {
-            chunks.push(batchRoles.slice(c, c + SR_CHUNK_SIZE));
+        // Fully complete batch — skip entirely
+        if (pendingRoles.length === 0) {
+            skipped++;
+            srLog(`⏭ ${batch} — ${allBatchRoles.length} roles already complete, skipping`, 'muted');
+            continue;
         }
 
-        const chunkWord = chunks.length > 1 ? `${chunks.length} chunks` : '1 chunk';
-        srLog(`📦 ${batch} — ${batchRoles.length} roles (${chunkWord})…`, 'info');
+        // Partial or full batch — research pending roles only
+        const isPartial = pendingRoles.length < allBatchRoles.length;
+        const chunks = [];
+        for (let c = 0; c < pendingRoles.length; c += SR_CHUNK_SIZE) {
+            chunks.push(pendingRoles.slice(c, c + SR_CHUNK_SIZE));
+        }
+
+        const chunkWord  = chunks.length > 1 ? `${chunks.length} chunks` : '1 chunk';
+        const partialTag = isPartial ? ` (${allBatchRoles.length - pendingRoles.length} already done, ${pendingRoles.length} remaining)` : '';
+        srLog(`📦 ${batch} — ${pendingRoles.length} roles (${chunkWord})${partialTag}…`, 'info');
 
         const allBatchResults = [];
         let batchFailed = false;
@@ -635,7 +694,9 @@ async function srStartResearch() {
             if (srAbortFlag) break;
 
             const chunk = chunks[c];
-            const chunkLabel = chunks.length > 1 ? ` chunk ${c + 1}/${chunks.length} (${chunk.length} roles)` : ` ${chunk.length} roles`;
+            const chunkLabel = chunks.length > 1
+                ? ` chunk ${c + 1}/${chunks.length} (${chunk.length} roles)`
+                : ` ${chunk.length} roles`;
 
             try {
                 srLog(`  ⏳${chunkLabel}…`, 'muted');
@@ -652,13 +713,12 @@ async function srStartResearch() {
             completedCalls++;
             srSetProgress(completedCalls, totalApiCalls);
 
-            // Polite delay between chunk calls
             if (c < chunks.length - 1 && !srAbortFlag) {
                 await srDelay(1500);
             }
         }
 
-        // Save whatever results we collected (partial saves are fine — better than nothing)
+        // Save whatever results were collected
         if (allBatchResults.length > 0) {
             try {
                 const resultsArr = allBatchResults.map(x => x.res);
@@ -666,7 +726,7 @@ async function srStartResearch() {
                 const saved = await srSaveResults(resultsArr, rolesArr, market, batch, runId);
                 totalSaved += saved;
                 if (batchFailed) {
-                    srLog(`  ⚠️ ${batch} — saved ${saved} of ${batchRoles.length} results (some chunks failed)`, 'warn');
+                    srLog(`  ⚠️ ${batch} — saved ${saved} of ${pendingRoles.length} results (some chunks failed)`, 'warn');
                 } else {
                     srLog(`  💾 ${batch} — saved ${saved} results`, 'success');
                 }
@@ -675,8 +735,7 @@ async function srStartResearch() {
             }
         }
 
-        // Delay between batches (not after the last one)
-        if (i < batches.length - 1 && !srAbortFlag) {
+        if (i < workPlan.length - 1 && !srAbortFlag) {
             await srDelay(1500);
         }
     }
@@ -687,7 +746,8 @@ async function srStartResearch() {
     document.getElementById('srAbortBtn').style.display = 'none';
 
     const status = srAbortFlag ? 'aborted' : 'complete';
-    srLog(`\n🏁 Run ${status}. ${totalSaved} results saved. ${errors} chunk errors.`, errors > 0 ? 'warn' : 'success');
+    const skipNote = skipped > 0 ? ` ${skipped} batches skipped (already complete).` : '';
+    srLog(`\n🏁 Run ${status}. ${totalSaved} results saved. ${errors} chunk errors.${skipNote}`, errors > 0 ? 'warn' : 'success');
 
     if (totalSaved > 0) {
         srLog(`💾 Data written to salary_research table under run_id: ${runId}`, 'muted');
