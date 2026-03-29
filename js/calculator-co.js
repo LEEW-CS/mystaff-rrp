@@ -251,9 +251,7 @@ function onCORoleBrowseSelect() {
     // Show hint
     const hint = document.getElementById('coSalaryRangeHint');
     if (hint && matches.length > 0) {
-        const expLabels = matches.map(m => m.experience || '').filter(Boolean);
-        const medianStr = match.median_salary ? ' · Median: COP ' + parseInt(match.median_salary).toLocaleString() : '';
-        hint.textContent = (expLabels.length ? `${match.category} · ${expLabels.join(' / ')}` : match.category) + medianStr;
+        hint.innerHTML = buildSalaryHintCO(match);
         hint.style.display = 'block';
     }
     // Update pill
@@ -289,6 +287,34 @@ function onCORoleSearch() {
     dd.classList.add('open');
 }
 
+function buildSalaryHintCO(role) {
+    const fmt   = n => n != null ? 'COP ' + Number(n).toLocaleString() : '—';
+    const confBadge = (c, label) => {
+        if (!c) return `<span style="color:var(--text-muted);font-size:0.72rem;">${label}: —</span>`;
+        const col = c === 'High' ? '#22c55e' : c === 'Medium' ? '#f59e0b' : '#ef4444';
+        return `<span style="font-size:0.72rem;">${label}: <strong style="color:${col};">${c}</strong></span>`;
+    };
+    return `
+        <div style="font-size:0.78rem;font-weight:600;margin-bottom:0.35rem;color:var(--text-muted);">Salary range from database:</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;">
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.35rem 0.5rem;">
+                <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:0.15rem;">25th percentile (Low)</div>
+                <div style="font-family:'Space Mono',monospace;font-weight:600;font-size:0.82rem;">${fmt(role.salary_low)}</div>
+                <div style="margin-top:0.15rem;">${confBadge(role.conf_low, 'Conf')}</div>
+            </div>
+            <div style="background:var(--bg);border:2px solid var(--accent);border-radius:5px;padding:0.35rem 0.5rem;">
+                <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:0.15rem;">50th percentile (Median)</div>
+                <div style="font-family:'Space Mono',monospace;font-weight:600;font-size:0.82rem;">${fmt(role.median_salary)}</div>
+                <div style="margin-top:0.15rem;">${confBadge(role.conf_median, 'Conf')}</div>
+            </div>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.35rem 0.5rem;">
+                <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:0.15rem;">75th percentile (High)</div>
+                <div style="font-family:'Space Mono',monospace;font-weight:600;font-size:0.82rem;">${fmt(role.salary_high)}</div>
+                <div style="margin-top:0.15rem;">${confBadge(role.conf_high, 'Conf')}</div>
+            </div>
+        </div>`;
+}
+
 function selectCORole(role) {
     document.getElementById('coRoleSearchInput').value = role.job_title;
     document.getElementById('coSelectedRoleId').value = role.id;
@@ -298,8 +324,7 @@ function selectCORole(role) {
     if (role.salary_high) document.getElementById('coBaseSalaryTo').value   = role.salary_high;
     const hint = document.getElementById('coSalaryRangeHint');
     if (hint) {
-        const medianStr = role.median_salary ? ' · Median: COP ' + parseInt(role.median_salary).toLocaleString() : '';
-        hint.textContent = (role.category || '') + (role.experience ? ' · ' + role.experience : '') + medianStr;
+        hint.innerHTML = buildSalaryHintCO(role);
         hint.style.display = 'block';
     }
     const pill = document.getElementById('coSelectedRolePill');

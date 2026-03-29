@@ -674,7 +674,7 @@ async function onRoleSearch() {
         try {
             const { data, error } = await supabaseClient
                 .from('salary_ranges')
-                .select('id, job_title, jpid_level, category, years_experience, low_salary, median_salary, high_salary')
+                .select('id, job_title, jpid_level, category, years_experience, low_salary, median_salary, high_salary, conf_low, conf_median, conf_high')
                 .ilike('job_title', `%${q}%`)
                 .limit(15);
             if (error) throw error;
@@ -702,6 +702,34 @@ function showRoleDropdown(roles) {
     dd.classList.add('open');
 }
 
+function buildSalaryHintPH(role) {
+    const fmt   = n => n != null ? '₱' + Number(n).toLocaleString() : '—';
+    const confBadge = (c, label) => {
+        if (!c) return `<span style="color:var(--text-muted);font-size:0.72rem;">${label}: —</span>`;
+        const col = c === 'High' ? '#22c55e' : c === 'Medium' ? '#f59e0b' : '#ef4444';
+        return `<span style="font-size:0.72rem;">${label}: <strong style="color:${col};">${c}</strong></span>`;
+    };
+    return `
+        <div style="font-size:0.78rem;font-weight:600;margin-bottom:0.35rem;color:var(--text-muted);">Salary range from database:</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;">
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.35rem 0.5rem;">
+                <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:0.15rem;">25th percentile (Low)</div>
+                <div style="font-family:'Space Mono',monospace;font-weight:600;font-size:0.82rem;">${fmt(role.low_salary)}</div>
+                <div style="margin-top:0.15rem;">${confBadge(role.conf_low, 'Conf')}</div>
+            </div>
+            <div style="background:var(--bg);border:2px solid var(--accent);border-radius:5px;padding:0.35rem 0.5rem;">
+                <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:0.15rem;">50th percentile (Median)</div>
+                <div style="font-family:'Space Mono',monospace;font-weight:600;font-size:0.82rem;">${fmt(role.median_salary)}</div>
+                <div style="margin-top:0.15rem;">${confBadge(role.conf_median, 'Conf')}</div>
+            </div>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.35rem 0.5rem;">
+                <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:0.15rem;">75th percentile (High)</div>
+                <div style="font-family:'Space Mono',monospace;font-weight:600;font-size:0.82rem;">${fmt(role.high_salary)}</div>
+                <div style="margin-top:0.15rem;">${confBadge(role.conf_high, 'Conf')}</div>
+            </div>
+        </div>`;
+}
+
 function selectRole(role) {
     document.getElementById('roleSearchInput').value = role.job_title;
     document.getElementById('selectedRoleId').value = role.id;
@@ -715,9 +743,9 @@ function selectRole(role) {
     const pill = document.getElementById('selectedRolePill');
     pill.innerHTML = `<span>${jpidPrefix}${role.job_title}</span><span class="role-pill-clear" onclick="clearSelectedRole()">×</span>`;
     pill.classList.remove('hidden');
-    // Show salary hint
+    // Show salary hint with confidence levels
     const hint = document.getElementById('salaryRangeHint');
-    hint.textContent = `Salary range from database: ₱${Number(role.low_salary).toLocaleString()} (low) · ₱${Number(role.median_salary).toLocaleString()} (median) · ₱${Number(role.high_salary).toLocaleString()} (high)`;
+    hint.innerHTML = buildSalaryHintPH(role);
     hint.style.display = 'block';
     calculate();
 }
