@@ -713,25 +713,74 @@ async function saveQuoteCO() {
                    || (currentUser ? (currentUser.name || currentUser.email) : 'Unknown') + ' — To Be Advised';
     const description = document.getElementById('quoteDescription').value.trim();
 
+    // Read raw inputs for accurate numeric storage
+    const currency      = document.getElementById('coCurrency').value;
+    const priceBook     = document.getElementById('coPriceBook').value;
+    const hardwareId    = document.getElementById('coMpcHardware').value;
+    const baseSalaryFrom = parseFloat(document.getElementById('coBaseSalaryFrom').value) || 4000000;
+    const baseSalaryTo   = parseFloat(document.getElementById('coBaseSalaryTo').value)   || baseSalaryFrom;
+    const nightDiffHours = parseInt(document.getElementById('coNightDiffHours').value)   || 0;
+
+    // Re-derive computed totals for clean numeric storage (same logic as calculateCO)
+    const fxRow      = getCOSelectedFXRates() || { cop_aud: 2552.83, cop_usd: 3669.75, period_label: 'Default' };
+    const pb         = pbCache[priceBook] || PRICE_BOOKS[priceBook];
+    const csFee      = pb ? (pb[currency] || 0) : 0;
+    const isElevate  = pb ? (pb.is_elevate || pb.isElevate || false) : false;
+    const mpcFee     = getHardwarePrice(hardwareId, currency, isElevate);
+    const setupFee   = SETUP_FEES[currency] || 399;
+    const hwRow      = calcHardwareData.find(p => p.id === parseInt(hardwareId));
+    const mpcName    = hwRow ? hwRow.name : 'No Hardware';
+
+    // Get EDC from DOM result spans (already computed by calculateCO)
+    // Parse "A$1,234.56 to A$2,345.67" or "A$1,234.56" → extract first number
+    const parseResultNum = (id) => {
+        const text = (document.getElementById(id)?.textContent || '').replace(/[^0-9.]/g, ' ').trim();
+        const nums = text.split(/\s+/).filter(Boolean).map(Number).filter(n => !isNaN(n) && n > 0);
+        return nums[0] || null;
+    };
+    const parseResultNumTo = (id) => {
+        const text = (document.getElementById(id)?.textContent || '').replace(/[^0-9.]/g, ' ').trim();
+        const nums = text.split(/\s+/).filter(Boolean).map(Number).filter(n => !isNaN(n) && n > 0);
+        return nums.length > 1 ? nums[nums.length - 1] : nums[0] || null;
+    };
+
+    const edcFrom    = parseResultNum('coResultEDC');
+    const edcTo      = parseResultNumTo('coResultEDC');
+    const totalFrom  = edcFrom != null ? edcFrom + csFee + mpcFee : parseResultNum('coResultTotalMonthly');
+    const totalTo    = edcTo   != null ? edcTo   + csFee + mpcFee : parseResultNumTo('coResultTotalMonthly');
+
+    // Get years experience from selected role if available
+    const selectedRoleId = document.getElementById('coSelectedRoleId')?.value;
+    const selectedRole   = selectedRoleId ? coSalaryRolesData.find(r => String(r.id) === String(selectedRoleId)) : null;
+    const yearsExp       = selectedRole ? (selectedRole.experience || selectedRole.years_experience || null) : null;
+
     const quoteData = {
-        market: 'CO',
-        quote_name: quoteName,
-        description: description || null,
-        candidate_name: document.getElementById('coCandidateName').value || 'To Be Advised',
-        role_name: document.getElementById('coRoleSearchInput').value || document.getElementById('coRoleName').value || 'To Be Advised',
-        custom_role_name: document.getElementById('coRoleName').value || null,
-        base_salary_from: parseFloat(document.getElementById('coBaseSalaryFrom').value) || 4000000,
-        base_salary_to: parseFloat(document.getElementById('coBaseSalaryTo').value) || 4000000,
-        currency: document.getElementById('coCurrency').value,
-        price_book: document.getElementById('coPriceBook').value,
-        night_diff_hours: parseInt(document.getElementById('coNightDiffHours').value) || 0,
-        night_diff_rate: 0.35,
+        market:             'CO',
+        quote_name:         quoteName,
+        description:        description || null,
+        candidate_name:     document.getElementById('coCandidateName').value || 'To Be Advised',
+        role_name:          document.getElementById('coRoleSearchInput').value || document.getElementById('coRoleName').value || 'To Be Advised',
+        custom_role_name:   document.getElementById('coRoleName').value || null,
+        base_salary_from:   baseSalaryFrom,
+        base_salary_to:     baseSalaryTo,
+        currency:           currency,
+        price_book:         priceBook,
+        night_diff_hours:   nightDiffHours,
+        night_diff_rate:    0.35,
         separation_override: document.getElementById('coSeparationOverride').value,
-        fx_month_id: parseInt(document.getElementById('coExchangeRateDate').value) || null,
-        hardware_id: parseInt(document.getElementById('coMpcHardware').value) || null,
-        night_meal_id: parseInt(document.getElementById('coNightMealsProduct').value) || null,
-        total_monthly: document.getElementById('coResultTotalMonthly').textContent,
-        created_by: currentUser ? (currentUser.name || currentUser.email || 'Unknown') : 'Unknown',
+        fx_month_id:        parseInt(document.getElementById('coExchangeRateDate').value) || null,
+        hardware_id:        parseInt(hardwareId) || null,
+        night_meal_id:      parseInt(document.getElementById('coNightMealsProduct').value) || null,
+        edc_amount:         edcFrom,
+        edc_amount_to:      edcTo,
+        mpc_amount:         mpcFee,
+        mpc_name:           mpcName,
+        mgmt_fee_amount:    csFee,
+        setup_fee_amount:   setupFee,
+        total_monthly:      totalFrom ? String(totalFrom) : document.getElementById('coResultTotalMonthly').textContent,
+        total_monthly_to:   totalTo   ? String(totalTo)   : null,
+        years_experience:   yearsExp,
+        created_by:         currentUser ? (currentUser.name || currentUser.email || 'Unknown') : 'Unknown',
     };
 
     try {

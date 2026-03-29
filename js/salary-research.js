@@ -1073,25 +1073,57 @@ async function srResearchBatch(roles, market, systemPromptOverride = null) {
 
 
 function srParseJsonResponse(raw, roles) {
-    // Strip any accidental markdown fences
+    // ── Multi-strategy JSON extraction ──────────────────────────────────────
+    // Claude occasionally wraps the JSON array in narrative text, preamble,
+    // or explanation. This parser tries progressively more aggressive strategies
+    // before giving up, which prevents "Could not parse JSON" errors on valid data.
+
     let cleaned = raw.trim();
+
+    // Strategy 1: strip markdown fences then direct parse
     cleaned = cleaned.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
 
     let parsed;
-    try {
-        parsed = JSON.parse(cleaned);
-    } catch(e) {
-        // Try to find JSON array within the text
+
+    // Strategy 1: direct parse after fence stripping
+    try { parsed = JSON.parse(cleaned); } catch(e) { /* fall through */ }
+
+    // Strategy 2: find the outermost [...] array (handles narrative before/after)
+    if (!Array.isArray(parsed)) {
         const match = cleaned.match(/\[[\s\S]*\]/);
         if (match) {
-            try { parsed = JSON.parse(match[0]); }
-            catch(e2) { throw new Error('Could not parse JSON from response'); }
-        } else {
-            throw new Error('No JSON array found in response');
+            try { parsed = JSON.parse(match[0]); } catch(e) { /* fall through */ }
         }
     }
 
-    if (!Array.isArray(parsed)) throw new Error('Response is not a JSON array');
+    // Strategy 3: find first [ and last ] and extract everything between
+    // Handles cases where narrative text contains its own brackets
+    if (!Array.isArray(parsed)) {
+        const firstBracket = cleaned.indexOf('[');
+        const lastBracket  = cleaned.lastIndexOf(']');
+        if (firstBracket !== -1 && lastBracket > firstBracket) {
+            const candidate = cleaned.slice(firstBracket, lastBracket + 1);
+            try { parsed = JSON.parse(candidate); } catch(e) { /* fall through */ }
+        }
+    }
+
+    // Strategy 4: extract each {...} object individually and build array
+    // Handles cases where the array wrapper itself is missing
+    if (!Array.isArray(parsed)) {
+        const objects = [];
+        const objRegex = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
+        let match;
+        while ((match = objRegex.exec(cleaned)) !== null) {
+            try {
+                const obj = JSON.parse(match[0]);
+                if (obj && typeof obj === 'object' && 'job_title' in obj) objects.push(obj);
+            } catch(e) { /* skip malformed object */ }
+        }
+        if (objects.length > 0) parsed = objects;
+    }
+
+    if (!Array.isArray(parsed)) throw new Error('Could not parse JSON from response after 4 strategies');
+    if (parsed.length === 0) throw new Error('Response parsed as empty array');
 
     // Validate and normalise each result
     return parsed.map((item, idx) => {
