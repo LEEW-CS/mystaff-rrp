@@ -403,8 +403,8 @@ function tbMountWidget(targetId) {
 #cs-team-builder .si-val{font-size:1.1rem;font-weight:800;color:#0a2540;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
 #cs-team-builder .sum-item.ac .si-val{color:var(--blue);}
 #cs-team-builder .sum-item.gd .si-val{color:var(--gold);font-size:1.25rem;}
-#cs-team-builder .tb-cta{background:#fff;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-top:3px solid var(--gold);}
-#cs-team-builder .tb-cta p{font-size:.78rem;color:var(--muted);max-width:520px;line-height:1.5;}
+#cs-team-builder .tb-cta{background:#fff;padding:20px 32px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;border-top:3px solid var(--gold);}
+#cs-team-builder .tb-cta p{font-size:.78rem;color:var(--muted);line-height:1.6;margin:0;}
 #cs-team-builder .tb-cta p strong{color:var(--txt);}
 #cs-team-builder .btn-cta{padding:11px 26px;background:var(--blue);border:none;border-radius:30px;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s;white-space:nowrap;}
 #cs-team-builder .btn-cta:hover{background:#0077cc;}
@@ -432,7 +432,7 @@ function tbMountWidget(targetId) {
   <div class="sum-item"><div class="si-lbl">Onshore Estimate ⚠️</div><div class="si-val" id="tb-sum-onsh">—</div></div>
   <div class="sum-item gd"><div class="si-lbl">Annual Saving</div><div class="si-val" id="tb-sum-saving">—</div></div>
 </div>
-<div class="tb-cta"><p><strong>These are indicative estimates.</strong> Your Cloudstaff BDM will prepare a detailed, personalised proposal — typically within one business day.</p><button class="btn-cta" onclick="window.location.href='https://www.cloudstaff.com/au/contact/'">Get a Detailed Quote →</button></div>`;
+<div class="tb-cta"><div style="max-width:680px;"><p style="font-size:.8rem;font-weight:700;color:var(--txt);margin-bottom:6px;">Things you need to know</p><p>This is not an official quote. It is an indicative estimate only. Your Cloudstaff BDM will prepare a detailed, personalised proposal once they understand your specific requirements — typically within one business day.</p><p style="margin-top:6px;">While all care is taken to produce an accurate estimate at the time that Team Builder is run, differences will likely appear between this indicative estimate and the final quote you accept.</p><p style="margin-top:6px;">For example:</p><ul style="margin:4px 0 0 16px;font-size:.75rem;color:var(--muted);line-height:1.8;"><li>FX rates may change;</li><li>A different PC model may be selected;</li><li>The candidate you select will request a specific starting salary;</li><li>The Service Country may change;</li><li>The work location may change (WFO, Hybrid, WFH).</li></ul></div><button class="btn-cta" onclick="window.location.href='https://www.cloudstaff.com/au/contact/'">Get a Detailed Quote →</button></div>`;
 
   const cs=document.getElementById('tb-currency-sel');
   TB_CURR.forEach(c=>{const o=document.createElement('option');o.value=c.code;o.textContent=c.label;if(c.code==='USD')o.selected=true;cs.appendChild(o);});
