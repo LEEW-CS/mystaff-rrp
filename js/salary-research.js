@@ -1438,28 +1438,70 @@ async function srLoadPublishTab() {
     wrap.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted);">Loading research coverage…</p>';
 
     try {
-        // Get counts from salary_research (is_current) per market
-        const researchCounts = {};
-        for (const mkt of SR_MARKETS) {
-            const { count, error } = await supabaseClient
-                .from('salary_research')
-                .select('id', { count: 'exact', head: true })
-                .eq('market', mkt.code)
-                .eq('is_current', true);
-            researchCounts[mkt.code] = error ? 0 : (count || 0);
-        }
-
-        // Get counts already published to salary_ranges per market
-        const publishedCounts = {};
-        for (const mkt of SR_MARKETS) {
-            const { count, error } = await supabaseClient
-                .from('salary_ranges')
-                .select('id', { count: 'exact', head: true })
-                .eq('market', mkt.code);
-            publishedCounts[mkt.code] = error ? 0 : (count || 0);
-        }
+        // Load research counts, published counts, publish timestamps, and latest research dates in parallel
+        const [researchCounts, publishedCounts, publishTimestamps, latestResearch] = await Promise.all([
+            // 1. Count of current research rows per market
+            (async () => {
+                const counts = {};
+                await Promise.all(SR_MARKETS.map(async mkt => {
+                    const { count } = await supabaseClient
+                        .from('salary_research')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('market', mkt.code)
+                        .eq('is_current', true);
+                    counts[mkt.code] = count || 0;
+                }));
+                return counts;
+            })(),
+            // 2. Count of published rows in salary_ranges per market
+            (async () => {
+                const counts = {};
+                await Promise.all(SR_MARKETS.map(async mkt => {
+                    const { count } = await supabaseClient
+                        .from('salary_ranges')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('market', mkt.code);
+                    counts[mkt.code] = count || 0;
+                }));
+                return counts;
+            })(),
+            // 3. Publish timestamps from app_settings (keys: published_at_PH, etc.)
+            (async () => {
+                const ts = {};
+                const keys = SR_MARKETS.map(m => `published_at_${m.code}`);
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('key, value')
+                    .in('key', keys);
+                (data || []).forEach(row => {
+                    const market = row.key.replace('published_at_', '');
+                    ts[market] = row.value;
+                });
+                return ts;
+            })(),
+            // 4. Latest researched_at per market (to detect stale publishes)
+            (async () => {
+                const latest = {};
+                await Promise.all(SR_MARKETS.map(async mkt => {
+                    const { data } = await supabaseClient
+                        .from('salary_research')
+                        .select('researched_at')
+                        .eq('market', mkt.code)
+                        .eq('is_current', true)
+                        .order('researched_at', { ascending: false })
+                        .limit(1);
+                    latest[mkt.code] = data?.[0]?.researched_at || null;
+                }));
+                return latest;
+            })(),
+        ]);
 
         const totalRoles = srAllRoles.length;
+        const fmtDate = iso => {
+            if (!iso) return null;
+            const d = new Date(iso);
+            return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+        };
 
         wrap.innerHTML = `
             <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
@@ -1469,18 +1511,58 @@ async function srLoadPublishTab() {
                         <th style="padding:0.5rem;text-align:right;">Researched</th>
                         <th style="padding:0.5rem;text-align:right;">Total Roles</th>
                         <th style="padding:0.5rem;text-align:right;">Coverage</th>
-                        <th style="padding:0.5rem;text-align:right;">Published</th>
+                        <th style="padding:0.5rem;text-align:left;">Published</th>
                         <th style="padding:0.5rem;text-align:center;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${SR_MARKETS.map(mkt => {
-                        const researched  = researchCounts[mkt.code] || 0;
-                        const published   = publishedCounts[mkt.code] || 0;
-                        const pct         = totalRoles > 0 ? Math.round(researched / totalRoles * 100) : 0;
-                        const isAdmin     = currentUser && currentUser.role === 'Admin';
-                        const canPublish  = isAdmin && researched > 0;
-                        const barColor    = pct >= 90 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+                        const researched    = researchCounts[mkt.code]  || 0;
+                        const published     = publishedCounts[mkt.code] || 0;
+                        const publishedAt   = publishTimestamps[mkt.code] || null;
+                        const latestAt      = latestResearch[mkt.code]  || null;
+                        const pct           = totalRoles > 0 ? Math.round(researched / totalRoles * 100) : 0;
+                        const isAdmin       = currentUser && currentUser.role === 'Admin';
+                        const isPublished   = published > 0 && !!publishedAt;
+                        const barColor      = pct >= 90 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+
+                        // Stale = research has newer data than last publish
+                        const isStale = isPublished && latestAt && publishedAt
+                            && new Date(latestAt) > new Date(publishedAt);
+
+                        // Published cell content
+                        let publishedCell;
+                        if (isPublished) {
+                            publishedCell = `
+                                <span style="font-family:'Space Mono',monospace;color:#22c55e;font-weight:600;">${published.toLocaleString()}</span>
+                                <span style="display:block;font-size:0.68rem;color:var(--text-muted);margin-top:1px;">${fmtDate(publishedAt)}</span>
+                                ${isStale ? `<span style="display:block;font-size:0.68rem;color:#f59e0b;font-weight:600;margin-top:1px;">⚠ Newer research available</span>` : ''}
+                            `;
+                        } else {
+                            publishedCell = `<span style="color:var(--text-muted);">—</span>`;
+                        }
+
+                        // Action button logic
+                        let actionCell;
+                        if (!isAdmin) {
+                            actionCell = `<span style="font-size:0.72rem;color:var(--text-muted);">Admin only</span>`;
+                        } else if (researched === 0) {
+                            actionCell = `<span style="font-size:0.72rem;color:var(--text-muted);">No data yet</span>`;
+                        } else if (isPublished && !isStale) {
+                            // Up to date — show muted re-publish option, not a prominent button
+                            actionCell = `
+                                <span style="font-size:0.72rem;color:#22c55e;font-weight:600;">✓ Up to date</span>
+                                <button class="btn btn-secondary btn-sm" onclick="srPublishMarket('${mkt.code}', true)"
+                                    style="font-size:0.68rem;margin-top:0.3rem;display:block;opacity:0.6;">
+                                    ↩ Re-publish
+                                </button>`;
+                        } else {
+                            // Not published yet, or stale — show prominent publish button
+                            actionCell = `<button class="btn btn-primary btn-sm" onclick="srPublishMarket('${mkt.code}', false)" style="font-size:0.75rem;">
+                                📤 ${isStale ? 'Update' : 'Publish'} ${mkt.code}
+                            </button>`;
+                        }
+
                         return `<tr style="border-bottom:1px solid var(--border);">
                             <td style="padding:0.6rem 0.5rem;">
                                 <img src="https://flagcdn.com/16x12/${mkt.flag}.png" width="16" height="12" style="vertical-align:middle;margin-right:6px;">
@@ -1497,23 +1579,14 @@ async function srLoadPublishTab() {
                                     <span style="font-size:0.75rem;font-weight:600;color:${barColor};">${pct}%</span>
                                 </div>
                             </td>
-                            <td style="padding:0.6rem 0.5rem;text-align:right;font-family:'Space Mono',monospace;color:${published>0?'#22c55e':'var(--text-muted)'};">
-                                ${published > 0 ? published.toLocaleString() : '—'}
-                            </td>
-                            <td style="padding:0.6rem 0.5rem;text-align:center;">
-                                ${canPublish
-                                    ? `<button class="btn btn-primary btn-sm" onclick="srPublishMarket('${mkt.code}')" style="font-size:0.75rem;">
-                                        📤 Publish ${mkt.code}
-                                       </button>`
-                                    : `<span style="font-size:0.72rem;color:var(--text-muted);">${researched === 0 ? 'No data yet' : 'Admin only'}</span>`
-                                }
-                            </td>
+                            <td style="padding:0.6rem 0.5rem;">${publishedCell}</td>
+                            <td style="padding:0.6rem 0.5rem;text-align:center;">${actionCell}</td>
                         </tr>`;
                     }).join('')}
                 </tbody>
             </table>
             <p style="font-size:0.75rem;color:var(--text-muted);margin-top:1rem;">
-                Publish copies current research results into the Salary Ranges table used by the calculators. Existing entries for that market are replaced. PH data already in Salary Ranges is not affected by publishing other markets.
+                Publish copies current research results into the Salary Ranges table used by the calculators. Existing entries for that market are replaced. ✓ Up to date means the calculator already has the latest research data.
             </p>
         `;
     } catch(e) {
@@ -1521,7 +1594,7 @@ async function srLoadPublishTab() {
     }
 }
 
-async function srPublishMarket(market) {
+async function srPublishMarket(market, isRepublish = false) {
     const mktInfo = SR_MARKETS.find(m => m.code === market);
     const label   = mktInfo ? mktInfo.label : market;
 
@@ -1547,9 +1620,16 @@ async function srPublishMarket(market) {
     const publishable = rows.filter(r => r.low_salary != null || r.median_salary != null || r.high_salary != null);
     const naCount     = rows.length - publishable.length;
 
-    if (!confirm(`Publish ${publishable.length} roles to Salary Ranges for ${label}?
-${naCount > 0 ? `(${naCount} "Role N/A" entries will be skipped)
-` : ''}This will replace all existing ${label} salary data in the calculator.`)) return;
+    const confirmMsg = isRepublish
+        ? `Re-publish ${publishable.length} roles to Salary Ranges for ${label}?
+
+The calculator already has up-to-date data. Are you sure you want to re-publish?`
+        : `Publish ${publishable.length} roles to Salary Ranges for ${label}?${naCount > 0 ? `
+(${naCount} "Role N/A" entries will be skipped)` : ''}
+
+This will replace all existing ${label} salary data in the calculator.`;
+
+    if (!confirm(confirmMsg)) return;
 
     try {
         // 2. Delete existing salary_ranges rows for this market
@@ -1561,15 +1641,15 @@ ${naCount > 0 ? `(${naCount} "Role N/A" entries will be skipped)
 
         // 3. Insert new rows in batches of 500
         const insertRows = publishable.map(r => ({
-            jpid_level:      r.jpid_level,
-            job_title:       r.job_title,
-            category:        r.category,
-            batch:           r.batch,
-            market:          market,
+            jpid_level:       r.jpid_level,
+            job_title:        r.job_title,
+            category:         r.category,
+            batch:            r.batch,
+            market:           market,
             years_experience: r.years_experience,
-            low_salary:      r.low_salary,
-            median_salary:   r.median_salary,
-            high_salary:     r.high_salary,
+            low_salary:       r.low_salary,
+            median_salary:    r.median_salary,
+            high_salary:      r.high_salary,
         }));
 
         const BATCH = 500;
@@ -1578,6 +1658,12 @@ ${naCount > 0 ? `(${naCount} "Role N/A" entries will be skipped)
             const { error: insErr } = await supabaseClient.from('salary_ranges').insert(chunk);
             if (insErr) throw new Error(`Insert failed at row ${i}: ` + insErr.message);
         }
+
+        // 4. Save publish timestamp to app_settings
+        const publishedAt = new Date().toISOString();
+        await supabaseClient
+            .from('app_settings')
+            .upsert({ key: `published_at_${market}`, value: publishedAt }, { onConflict: 'key' });
 
         srLog(`✅ Published ${insertRows.length} ${label} roles to Salary Ranges`, 'success');
         alert(`✅ ${insertRows.length} ${label} roles published to Salary Ranges successfully!${naCount > 0 ? `
