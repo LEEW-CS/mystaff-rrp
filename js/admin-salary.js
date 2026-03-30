@@ -124,7 +124,7 @@ function renderSalaryTable() {
 
     // Show/hide CRUD controls based on role
     const salesMode = isSalesUser();
-    const addRoleBtn = document.querySelector('#page-salary-ranges .btn-primary');
+    const addRoleBtn = document.getElementById('salaryAddRoleBtn');
     if (addRoleBtn) addRoleBtn.style.display = salesMode ? 'none' : '';
 
     if (page.length === 0) {

@@ -156,12 +156,6 @@
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 <span class="nav-item-label">Salary Research</span>
             </div>
-
-            <div class="nav-section-title admin-only">Tools</div>
-            <div class="nav-item admin-only" data-page="team-builder" data-label="Team Builder">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                <span class="nav-item-label">Team Builder</span>
-            </div>
         </div>
         <div class="sidebar-footer">
             <div style="font-size:0.6rem;color:rgba(255,255,255,0.35);font-family:'Space Mono',monospace;text-align:center;padding:0 0.75rem 0.25rem;" id="sidebarVersionStamp"></div>
@@ -630,7 +624,7 @@
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
                     <div class="card-title" style="margin-bottom: 0;">💰 Salary Ranges</div>
-                    <button class="btn btn-primary btn-sm" onclick="showAddSalaryModal()">+ Add Role</button>
+                    <button id="salaryAddRoleBtn" class="btn btn-primary btn-sm" onclick="showAddSalaryModal()">+ Add Role</button>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.75rem; margin-bottom: 1rem;">
                     <input type="text" id="salarySearch" placeholder="Search job title..." oninput="filterSalaries()" style="padding:0.5rem 0.875rem; font-size:0.875rem; border:1px solid var(--border); border-radius:8px;">
@@ -1487,96 +1481,6 @@
             </div>
 
         </div><!-- /page-salary-research -->
-
-        <!-- Team Builder Page -->
-        <div class="page" id="page-team-builder">
-            <div class="page-header">
-                <h1>🏗️ Team Builder</h1>
-                <p>Website widget — preview, configure and copy the embed code</p>
-            </div>
-
-            <!-- Tab bar -->
-            <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.5rem;">
-                <button id="tb-tab-preview" onclick="tbSwitchTab('preview')"
-                    style="padding:0.6rem 1.25rem;font-size:0.8rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);font-family:inherit;">
-                    👁 Preview
-                </button>
-                <button id="tb-tab-embed" onclick="tbSwitchTab('embed')"
-                    style="padding:0.6rem 1.25rem;font-size:0.8rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-family:inherit;">
-                    &lt;/&gt; Embed Code
-                </button>
-                <button id="tb-tab-settings" onclick="tbSwitchTab('settings')"
-                    style="padding:0.6rem 1.25rem;font-size:0.8rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-family:inherit;">
-                    ⚙️ Settings
-                </button>
-            </div>
-
-            <!-- Preview tab -->
-            <div id="tb-panel-preview">
-                <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1rem;">
-                    <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.75rem;font-weight:600;">
-                        Live Widget Preview — as it appears on cloudstaff.com
-                    </div>
-                    <div id="tb-widget-mount"></div>
-                </div>
-            </div>
-
-            <!-- Embed Code tab -->
-            <div id="tb-panel-embed" style="display:none;">
-                <div class="calc-card">
-                    <div class="calc-card-header">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-                        Embed Code
-                    </div>
-                    <div class="calc-card-body">
-                        <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.6;">
-                            Copy this snippet and paste into any page on cloudstaff.com.
-                        </p>
-                        <div style="position:relative;">
-                            <pre id="tb-embed-code" style="background:#0d1117;color:#e6edf3;border-radius:8px;padding:1rem;font-size:0.72rem;font-family:'Space Mono',monospace;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto;line-height:1.5;"></pre>
-                            <button onclick="tbCopyEmbed()"
-                                style="position:absolute;top:0.5rem;right:0.5rem;padding:0.35rem 0.85rem;font-size:0.72rem;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;">
-                                Copy
-                            </button>
-                        </div>
-                        <div id="tb-copy-feedback" style="display:none;font-size:0.75rem;color:#22c55e;margin-top:0.5rem;font-weight:600;">✓ Copied to clipboard</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Settings tab -->
-            <div id="tb-panel-settings" style="display:none;">
-                <div class="calc-card">
-                    <div class="calc-card-header">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        Onshore Comparison Stubs (Admin)
-                    </div>
-                    <div class="calc-card-body">
-                        <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.6;">
-                            Default onshore comparison costs (AUD/month) used when AU salary research is not yet published.
-                        </p>
-                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label>Junior (AUD/month)</label>
-                                <input type="number" id="tb-stub-junior" value="5800" style="font-family:'Space Mono',monospace;">
-                            </div>
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label>Mid-Level (AUD/month)</label>
-                                <input type="number" id="tb-stub-mid" value="7500" style="font-family:'Space Mono',monospace;">
-                            </div>
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label>Senior (AUD/month)</label>
-                                <input type="number" id="tb-stub-senior" value="9800" style="font-family:'Space Mono',monospace;">
-                            </div>
-                        </div>
-                        <div style="margin-top:1rem;">
-                            <button class="btn btn-primary btn-sm" onclick="tbSaveStubs()">Save Stub Values</button>
-                            <span id="tb-stubs-saved" style="display:none;font-size:0.75rem;color:#22c55e;margin-left:0.75rem;font-weight:600;">✓ Saved</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div><!-- /page-team-builder -->
 
     <!-- Salary Research — Re-research Modal -->
     <div class="modal-overlay" id="srReResearchModal">
@@ -2801,7 +2705,6 @@
     <script src="js/admin-night-meals.js"></script>
     <script src="js/proposal-generator.js"></script>
     <script src="js/salary-research.js"></script>
-    <script src="js/teambuilder-widget.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
