@@ -108,6 +108,11 @@
                 <span class="nav-item-label">Colombia Calc</span>
                 <span style="margin-left:auto;font-size:0.6rem;font-weight:700;text-transform:uppercase;background:rgba(251,191,36,0.25);color:#fbbf24;padding:0.1rem 0.35rem;border-radius:4px;">BETA</span>
             </div>
+            <div class="nav-item" data-page="calculator-in" data-label="India Calculator">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span class="nav-item-label">India Calc</span>
+                <span style="margin-left:auto;font-size:0.6rem;font-weight:700;text-transform:uppercase;background:rgba(251,191,36,0.25);color:#fbbf24;padding:0.1rem 0.35rem;border-radius:4px;">BETA</span>
+            </div>
             <div class="nav-item" data-page="quotes" data-label="Saved Quotes">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 <span class="nav-item-label">Saved Quotes</span>
@@ -152,14 +157,9 @@
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" /></svg>
                 <span class="nav-item-label">Night Meals</span>
             </div>
-            <div class="nav-section-title admin-only">Tools</div>
             <div class="nav-item admin-only" data-page="salary-research" data-label="Salary Research">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 <span class="nav-item-label">Salary Research</span>
-            </div>
-            <div class="nav-item admin-only" data-page="team-builder" data-label="Team Builder">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                <span class="nav-item-label">Team Builder</span>
             </div>
         </div>
         <div class="sidebar-footer">
@@ -1283,6 +1283,265 @@
         </div><!-- /page-calculator-co -->
 
         <!-- ============================================================ -->
+        <!-- INDIA CALCULATOR PAGE                                         -->
+        <!-- ============================================================ -->
+        <div class="page" id="page-calculator-in">
+            <div class="page-header">
+                <h1>🇮🇳 India Calc</h1>
+                <p>Outsourcing cost calculator for India — INR-based CTC structure</p>
+            </div>
+
+            <!-- Editing Banner (IN) -->
+            <div class="editing-banner hidden" id="editingBannerIN">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                <div class="editing-banner-text">You are editing: <strong id="editingQuoteNameIN">--</strong> (<span id="editingQuoteNumberIN">--</span>)</div>
+            </div>
+
+            <div class="calculator-grid">
+                <!-- Card 1: Price Book Info (IN) -->
+                <div class="calc-card">
+                    <div class="calc-card-header">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Price Book Information
+                    </div>
+                    <div class="calc-card-body">
+                        <div class="form-group">
+                            <label>Exchange Rate Last Updated:</label>
+                            <select id="inExchangeRateDate" onchange="calculateIN()">
+                                <option value="">Loading FX dates...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Invoicing / Quote Currency:</label>
+                            <select id="inCurrency" onchange="calculateIN()">
+                                <option value="AUD">AUD - Australian Dollar</option>
+                                <option value="USD">USD - US Dollar</option>
+                                <option value="GBP">GBP - British Pound</option>
+                                <option value="HKD">HKD - Hong Kong Dollar</option>
+                                <option value="SGD">SGD - Singapore Dollar</option>
+                                <option value="EUR">EUR - Euro</option>
+                                <option value="CAD">CAD - Canadian Dollar</option>
+                                <option value="NZD">NZD - New Zealand Dollar</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Select Price Book:</label>
+                            <select id="inPriceBook" onchange="calculateIN()">
+                                <option value="">Loading price books…</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Managed PC Hardware:</label>
+                            <select id="inMpcHardware" onchange="calculateIN()">
+                                <option value="">No Hardware / BYO PC</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Candidate Information (IN) -->
+                <div class="calc-card">
+                    <div class="calc-card-header">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                        Candidate Information
+                    </div>
+                    <div class="calc-card-body">
+                        <div class="form-group">
+                            <label>Candidate's Name:</label>
+                            <input type="text" id="inCandidateName" placeholder="Enter candidate name" oninput="calculateIN()">
+                        </div>
+                        <div class="form-group">
+                            <label>Role / Job Title:</label>
+                            <div class="role-browse-row">
+                                <select id="inRoleBrowseCategory" onchange="onINRoleCategoryChange()">
+                                    <option value="">Browse by Category…</option>
+                                </select>
+                                <select id="inRoleBrowseRole" onchange="onINRoleBrowseSelect()">
+                                    <option value="">Select role…</option>
+                                </select>
+                            </div>
+                            <div class="role-or-divider"><span>or search by title</span></div>
+                            <div class="role-search-wrapper">
+                                <input type="text" id="inRoleSearchInput" placeholder="Search India roles… (e.g. Developer, Analyst)" oninput="onINRoleSearch()" autocomplete="off">
+                                <div class="role-dropdown" id="inRoleDropdown"></div>
+                                <input type="hidden" id="inSelectedRoleId">
+                                <div id="inSelectedRolePill" class="role-pill hidden"></div>
+                            </div>
+                            <div class="form-group" style="margin-top:0.5rem;margin-bottom:0;">
+                                <label style="font-size:0.75rem;color:var(--text-muted);">Or type a custom role name:</label>
+                                <input type="text" id="inRoleName" placeholder="Custom role name (optional)" oninput="calculateIN()">
+                            </div>
+                            <div id="inSalaryRangeHint" class="salary-hint" style="display:none;margin-top:0.5rem;"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Yearly CTC (INR ₹):</label>
+                            <div class="salary-input-group">
+                                <span class="salary-prefix" style="font-size:0.7rem;">₹</span>
+                                <input type="number" id="inYearlyCTC" value="600000" min="100000" step="10000" placeholder="Annual CTC in INR" oninput="calculateIN()">
+                            </div>
+                            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem;">Enter the full annual CTC package (Cost to Company) in Indian Rupees</div>
+                        </div>
+                        <div style="border-top:1px solid var(--border);margin:0.75rem 0;"></div>
+                        <div class="two-col">
+                            <div class="form-group">
+                                <label>Night Diff Hours:</label>
+                                <select id="inNightDiffHours" onchange="calculateIN()">
+                                    <option value="0" selected>0</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Dependents (HMO):</label>
+                                <select id="inDependents" onchange="calculateIN()">
+                                    <option value="0">0</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3" selected>3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3: Results (IN) -->
+                <div class="calc-card results-calc-card">
+                    <div class="calc-card-header" style="background:linear-gradient(135deg,#7c2d12 0%,#ea580c 100%);">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        Calculation Results
+                    </div>
+                    <div class="calc-card-body">
+                        <div class="candidate-summary">
+                            <div class="cand-row"><span class="cand-label">Candidate:</span><span class="cand-value" id="inResultCandidateName">To Be Advised</span></div>
+                            <div class="cand-row"><span class="cand-label">Role:</span><span class="cand-value" id="inResultRoleName">To Be Advised</span></div>
+                            <div class="cand-row"><span class="cand-label">Monthly Base Salary:</span><span class="cand-value" id="inResultBaseSalary">--</span></div>
+                        </div>
+
+                        <div class="results-section-label">Monthly Recurring Costs</div>
+                        <div class="results-grid-4">
+                            <div class="result-tile highlight"><div class="rt-label">Monthly Employee Direct Costs</div><div class="rt-value" id="inResultEDC">--</div><div class="rt-note">Salary + Benefits</div></div>
+                            <div class="result-tile highlight"><div class="rt-label">Monthly CS Fee</div><div class="rt-value" id="inResultCSFee">--</div><div class="rt-note">Service Fee</div></div>
+                            <div class="result-tile highlight"><div class="rt-label">Monthly mPC Fee</div><div class="rt-value" id="inResultMPC">--</div><div class="rt-note" id="inResultMPCProduct">Hardware</div></div>
+                            <div class="result-tile total-tile"><div class="rt-label">Total Monthly Costs</div><div class="rt-value" id="inResultTotalMonthly">--</div><div class="rt-note">EDC + CS Fee + mPC Fee</div></div>
+                        </div>
+
+                        <div class="results-section-label">Once Off Charges</div>
+                        <div class="results-grid-2">
+                            <div class="result-tile"><div class="rt-label">Setup Fee</div><div class="rt-value small" id="inResultSetup">--</div></div>
+                            <div class="result-tile"><div class="rt-label">Deposit (1.5 months)</div><div class="rt-value small" id="inResultDeposit">--</div></div>
+                        </div>
+
+                        <div class="results-section-label">Other</div>
+                        <div class="results-grid-2">
+                            <div class="result-tile"><div class="rt-label">Easy Leave</div><div class="rt-value small" id="inResultEasyLeave">--</div><div class="rt-note">Daily rate × 0.958</div></div>
+                            <div class="result-tile fx-tile"><div class="rt-label">FX Rate Used</div><div class="rt-value small" id="inResultFXRate">--</div><div class="rt-note" id="inResultFXDesc">--</div><div class="rt-note" id="inResultFXDate">--</div></div>
+                        </div>
+
+                        <div class="rate-summary">
+                            <h3>Rate Calculations</h3>
+                            <div class="rate-grid">
+                                <div class="rate-item"><div class="rate-label">Daily Rate</div><div class="rate-value" id="inResultDayRate">--</div></div>
+                                <div class="rate-item"><div class="rate-label">Hourly Rate</div><div class="rate-value" id="inResultHourlyRate">--</div></div>
+                            </div>
+                        </div>
+
+                        <div class="validity-box">
+                            <span class="validity-label">Quote Valid Until:</span>
+                            <span class="validity-date" id="inQuoteValidity">--</span>
+                        </div>
+
+                        <div class="quote-actions">
+                            <button class="btn btn-primary" id="inSaveQuoteBtn" onclick="showINSaveQuoteModal(); showModal('saveQuoteModal')">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                                Save Quote
+                            </button>
+                            <button class="btn btn-secondary" onclick="generatePDFIN()">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                Generate PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /calculator-grid -->
+
+            <!-- EDC Formula Tiles (IN) -->
+            <div class="calc-card" style="margin-top:1rem;">
+                <div class="calc-card-header" style="background:linear-gradient(135deg,#7c2d12 0%,#c2410c 100%);">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                    Monthly Employee Direct Costs Explained
+                </div>
+                <div class="calc-card-body">
+                    <div class="edc-formula-row">
+                        <div class="edc-tile"><div class="edc-tile-label">Monthly Basic Salary</div><div class="edc-tile-vals"><span class="edc-main" id="inEdcBasicSalary">--</span><span class="edc-php" id="inEdcBasicSalaryINR">--</span></div><div class="edc-tile-desc">CTC ÷ 12 + Night Differential (10%)</div></div>
+                        <div class="edc-op">+</div>
+                        <div class="edc-tile"><div class="edc-tile-label">Monthly Statutory Benefits</div><div class="edc-tile-vals"><span class="edc-main" id="inEdcStatutory">--</span><span class="edc-php" id="inEdcStatutoryINR">--</span></div><div class="edc-tile-desc">Provident Fund (12%), ESI (3.25%), Gratuity (4.165%)</div></div>
+                        <div class="edc-op">+</div>
+                        <div class="edc-tile"><div class="edc-tile-label">Monthly CS Benefits</div><div class="edc-tile-vals"><span class="edc-main" id="inEdcCSBenefits">--</span><span class="edc-php" id="inEdcCSBenefitsINR">--</span></div><div class="edc-tile-desc">Redundancy Insurance, HMO, Uniform/IDs, Team Building, XMAS Party, Social Club</div></div>
+                        <div class="edc-op">+</div>
+                        <div class="edc-tile"><div class="edc-tile-label">Monthly CS Tech Costs</div><div class="edc-tile-vals"><span class="edc-main" id="inEdcCSTech">--</span><span class="edc-php" id="inEdcCSTechINR">--</span></div><div class="edc-tile-desc">Microsoft (AUD 12.68), CIB/Staffcentral, Prof. Indemnity, Comprehensive Insurance</div></div>
+                        <div class="edc-op edc-eq">=</div>
+                        <div class="edc-tile edc-total-tile"><div class="edc-tile-label">Monthly EDC Grand Total</div><div class="edc-tile-vals"><span class="edc-main" id="inEdcTotal">--</span><span class="edc-php" id="inEdcTotalINR">--</span></div><div class="edc-tile-desc">Basic Salary + Statutory + CS Benefits + CS Tech</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Breakdown (IN) -->
+            <div class="calc-card" id="inEdcDetailedBreakdown" style="margin-top:1rem;">
+                <div class="calc-card-header" style="background:linear-gradient(135deg,#7c2d12 0%,#b45309 100%);">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                    Detailed Breakdown of Employee Direct Costs
+                </div>
+                <div class="calc-card-body">
+                    <div class="alert-box">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <span>This section is NOT for client consumption. Do not distribute the detailed EDC breakdown to clients.</span>
+                    </div>
+                    <div class="breakdown-scroll">
+                        <table class="breakdown-table">
+                            <thead><tr><th>Component</th><th>INR (₹)</th><th id="inBenefitsCurrencyHeader">AUD</th></tr></thead>
+                            <tbody>
+                                <tr class="bf-section"><td colspan="3">Monthly Basic Salary</td></tr>
+                                <tr><td>Monthly Base (CTC ÷ 12)</td><td class="bf-php" id="inEdcBasicSalaryINR2">--</td><td id="inEdcBasicSalary2">--</td></tr>
+                                <tr><td>Night Differential (10%)</td><td class="bf-php" id="inEdcNightDiffINR">--</td><td id="inEdcNightDiff">--</td></tr>
+                                <tr class="bf-subtotal"><td>Subtotal: Monthly Basic Salary</td><td class="bf-php" id="inBfBasicSubINR">--</td><td id="inBfBasicSub">--</td></tr>
+
+                                <tr class="bf-section"><td colspan="3">Monthly Statutory Benefits</td></tr>
+                                <tr><td>Provident Fund — 12% of Basic</td><td class="bf-php" id="inEdcPFINR">--</td><td id="inEdcPF">--</td></tr>
+                                <tr><td>ESI — 3.25% (if monthly basic ≤ ₹21,000)</td><td class="bf-php" id="inEdcESIINR">--</td><td id="inEdcESI">--</td></tr>
+                                <tr><td>Gratuity — 4.165% of CTC</td><td class="bf-php" id="inEdcGratuityINR">--</td><td id="inEdcGratuity">--</td></tr>
+                                <tr class="bf-subtotal"><td>Subtotal: Monthly Statutory Benefits</td><td class="bf-php" id="inBfStatutorySubINR">--</td><td id="inBfStatutorySub">--</td></tr>
+
+                                <tr class="bf-section"><td colspan="3">Monthly CS Benefits</td></tr>
+                                <tr><td>Redundancy Insurance — 8.5% of monthly base</td><td class="bf-php" id="inEdcRedundancyINR">--</td><td id="inEdcRedundancy">--</td></tr>
+                                <tr><td>HMO + Company Pharmacy</td><td class="bf-php" id="inEdcHMOINR">--</td><td id="inEdcHMO">--</td></tr>
+                                <tr><td>Uniforms &amp; Work IDs</td><td class="bf-php" id="inEdcUniformINR">--</td><td id="inEdcUniform">--</td></tr>
+                                <tr><td>Team Building, XMAS Party, Social Club</td><td class="bf-php" id="inEdcCSBenefitsINR2">--</td><td id="inEdcCSBenefits2">--</td></tr>
+                                <tr class="bf-subtotal"><td>Subtotal: Monthly CS Benefits</td><td class="bf-php" id="inBfBenefitsSubINR">--</td><td id="inBfBenefitsSub">--</td></tr>
+
+                                <tr class="bf-section"><td colspan="3">Monthly CS Tech Costs</td></tr>
+                                <tr><td>Technology Charge (Microsoft) — AUD $12.68</td><td class="bf-php" id="inEdcMicrosoftINR">--</td><td id="inEdcMicrosoft">--</td></tr>
+                                <tr><td>CIB/Staffcentral/Timekeeping</td><td class="bf-php" id="inEdcCIBINR">--</td><td id="inEdcCIB">--</td></tr>
+                                <tr><td>Professional Indemnity Insurance</td><td class="bf-php" id="inEdcIndemnityINR">--</td><td id="inEdcIndemnity">--</td></tr>
+                                <tr><td>Comprehensive Insurance</td><td class="bf-php" id="inEdcComprehensiveINR">--</td><td id="inEdcComprehensive">--</td></tr>
+                                <tr class="bf-subtotal"><td>Subtotal: Monthly CS Tech Costs</td><td class="bf-php" id="inBfTechSubINR">--</td><td id="inBfTechSub">--</td></tr>
+
+                                <tr class="bf-total"><td>Grand Total: Monthly Employee Direct Costs</td><td class="bf-php" id="inBfTotalINR">--</td><td id="inBfTotal">--</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div><!-- /page-calculator-in -->
+
+        <!-- ============================================================ -->
         <!-- SALARY RESEARCH PAGE (Admin Only)                            -->
         <!-- ============================================================ -->
         <div class="page" id="page-salary-research">
@@ -1486,59 +1745,6 @@
             </div>
 
         </div><!-- /page-salary-research -->
-
-        <div class="page" id="page-team-builder">
-            <div class="card" style="margin-bottom:1rem;">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
-                    <div class="card-title" style="margin-bottom:0;">🏗️ Team Builder</div>
-                    <div style="display:flex; gap:0.5rem; border-bottom:2px solid var(--border); padding-bottom:0;">
-                        <button id="tb-tab-preview"  onclick="tbSwitchTab('preview')"  style="background:none;border:none;padding:0.5rem 1rem;font-size:0.875rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);">Preview</button>
-                        <button id="tb-tab-embed"    onclick="tbSwitchTab('embed')"    style="background:none;border:none;padding:0.5rem 1rem;font-size:0.875rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);">Embed Code</button>
-                        <button id="tb-tab-settings" onclick="tbSwitchTab('settings')" style="background:none;border:none;padding:0.5rem 1rem;font-size:0.875rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);">Settings</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Preview Tab -->
-            <div id="tb-panel-preview">
-                <div id="tb-widget-mount"></div>
-            </div>
-
-            <!-- Embed Tab -->
-            <div id="tb-panel-embed" style="display:none;">
-                <div class="card">
-                    <div class="card-title">Embed Code</div>
-                    <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:1rem;">Copy this snippet into any webpage to embed the Team Builder widget.</p>
-                    <pre id="tb-embed-code" style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:1rem; font-size:0.8rem; white-space:pre-wrap; overflow-x:auto;"></pre>
-                    <button class="btn btn-primary btn-sm" onclick="tbCopyEmbed()" style="margin-top:0.75rem;">Copy to Clipboard</button>
-                    <span id="tb-copy-feedback" style="display:none; margin-left:0.75rem; font-size:0.875rem; color:var(--success);">✓ Copied!</span>
-                </div>
-            </div>
-
-            <!-- Settings Tab -->
-            <div id="tb-panel-settings" style="display:none;">
-                <div class="card">
-                    <div class="card-title">Onshore Salary Benchmarks (AUD/month)</div>
-                    <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:1rem;">Default fallback values used when a role doesn't have a specific onshore benchmark.</p>
-                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; max-width:480px;">
-                        <div>
-                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.35rem;">Junior</label>
-                            <input type="number" id="tb-stub-junior" value="5800" style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.875rem;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.35rem;">Mid</label>
-                            <input type="number" id="tb-stub-mid" value="7500" style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.875rem;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.35rem;">Senior</label>
-                            <input type="number" id="tb-stub-senior" value="9800" style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.875rem;">
-                        </div>
-                    </div>
-                    <button class="btn btn-primary btn-sm" onclick="tbSaveStubs()" style="margin-top:1rem;">Save</button>
-                    <span id="tb-stubs-saved" style="display:none; margin-left:0.75rem; font-size:0.875rem; color:var(--success);">✓ Saved!</span>
-                </div>
-            </div>
-        </div><!-- /page-team-builder -->
 
     <!-- Salary Research — Re-research Modal -->
     <div class="modal-overlay" id="srReResearchModal">
@@ -2756,6 +2962,7 @@
     <script src="js/calculator-ph.js"></script>
     <script src="js/quotes-and-ph-pdf.js"></script>
     <script src="js/calculator-co.js"></script>
+    <script src="js/calculator-in.js"></script>
     <script src="js/admin-benefits.js"></script>
     <script src="js/admin-sss.js"></script>
     <script src="js/admin-fx.js"></script>
@@ -2763,7 +2970,6 @@
     <script src="js/admin-night-meals.js"></script>
     <script src="js/proposal-generator.js"></script>
     <script src="js/salary-research.js"></script>
-    <script src="js/teambuilder-widget.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

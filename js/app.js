@@ -2,7 +2,7 @@
 // BUILD VERSION
 // =====================================================
 const APP_VERSION = 'v13 r36 modular';
-const APP_BUILD   = '2026-03-29';
+const APP_BUILD   = '2026-03-30';
 
 (function setVersionStamps() {
     const stamp = `${APP_VERSION} · build ${APP_BUILD}`;
