@@ -213,7 +213,8 @@ function onINRoleBrowseSelect() {
     document.getElementById('inRoleSearchInput').value = match.job_title;
     document.getElementById('inSelectedRoleId').value  = match.id;
     document.getElementById('inRoleName').value        = '';
-    if (match.low_salary)    document.getElementById('inYearlyCTC').value = match.low_salary;
+    if (match.low_salary)    document.getElementById('inYearlyCTCFrom').value = match.low_salary;
+    document.getElementById('inYearlyCTCTo').value   = match.low_salary;
     const hint = document.getElementById('inSalaryRangeHint');
     if (hint) { hint.innerHTML = buildSalaryHintIN(match); hint.style.display = 'block'; }
     updateINRolePill(match.job_title);
@@ -242,7 +243,8 @@ function selectINRole(role) {
     document.getElementById('inSelectedRoleId').value  = role.id;
     document.getElementById('inRoleName').value        = '';
     document.getElementById('inRoleDropdown').classList.remove('open');
-    if (role.low_salary) document.getElementById('inYearlyCTC').value = role.low_salary;
+    if (role.low_salary) document.getElementById('inYearlyCTCFrom').value = role.low_salary;
+    document.getElementById('inYearlyCTCTo').value   = role.low_salary;
     const hint = document.getElementById('inSalaryRangeHint');
     if (hint) { hint.innerHTML = buildSalaryHintIN(role); hint.style.display = 'block'; }
     updateINRolePill(role.job_title);
@@ -311,12 +313,14 @@ function calculateIN() {
         sgd: 64.8, eur: 94.2, cad: 63.0, nzd: 52.3,
     };
 
-    const currency     = document.getElementById('inCurrency').value;
-    const priceBook    = document.getElementById('inPriceBook').value;
-    const hardwareId   = document.getElementById('inMpcHardware').value;
-    const yearlyCTC    = parseFloat(document.getElementById('inYearlyCTC').value) || 0;
-    const dependents   = parseInt(document.getElementById('inDependents').value)  || 3;
-    const nightDiffHrs = parseFloat(document.getElementById('inNightDiffHours').value) || 0;
+    const currency       = document.getElementById('inCurrency').value;
+    const priceBook      = document.getElementById('inPriceBook').value;
+    const hardwareId     = document.getElementById('inMpcHardware').value;
+    const yearlyCTCFrom  = parseFloat(document.getElementById('inYearlyCTCFrom').value) || 0;
+    const yearlyCTCTo    = parseFloat(document.getElementById('inYearlyCTCTo').value)   || yearlyCTCFrom;
+    const dependents     = parseInt(document.getElementById('inDependents').value)  || 3;
+    const nightDiffHrs   = parseFloat(document.getElementById('inNightDiffHours').value) || 0;
+    const isRange        = yearlyCTCFrom !== yearlyCTCTo;
 
     // ── FX conversion helper ─────────────────────────
     // FX table stores: INR per 1 foreign unit
@@ -331,124 +335,129 @@ function calculateIN() {
     // AUD rate needed for Microsoft cost conversion
     const audRate = parseFloat(fxRow['aud']) || 54.8; // INR per 1 AUD
 
-    // ── 1. BASE SALARY ───────────────────────────────
-    // F246: =ROUND(yearlyCtc / 12, 0)
-    const monthlyBase = Math.round(yearlyCTC / 12);
+    // ── EDC formula for a given CTC ─────────────────
+    function calcINForCTC(yearlyCTC) {
+        // 1. BASE SALARY — F246: =ROUND(yearlyCtc / 12, 0)
+        const monthlyBase = Math.round(yearlyCTC / 12);
 
-    // ── 2. NIGHT DIFFERENTIAL ────────────────────────
-    // F247: =(monthlyBase * 12 / 260 / 8) * 0.10 * (nightDiffHours * 22)
-    // India rate is fixed at 10% (vs PH which varies)
-    const dayRateINR  = monthlyBase * 12 / 260;
-    const nightDiff   = nightDiffHrs > 0
-        ? (dayRateINR / 8) * 0.10 * (nightDiffHrs * 22)
-        : 0;
+        // 2. NIGHT DIFFERENTIAL — F247: unrounded
+        // =(monthlyBase * 12 / 260 / 8) * 0.10 * (nightDiffHours * 22)
+        const dayRateINR = monthlyBase * 12 / 260;
+        const nightDiff  = nightDiffHrs > 0
+            ? (dayRateINR / 8) * 0.10 * (nightDiffHrs * 22)
+            : 0;
 
-    // ── 3. EMPLOYER STATUTORY BENEFITS ───────────────
-    // Derived from yearly CTC, then divided to monthly
+        // 3. STATUTORY BENEFITS
+        // Basic Salary = 50% of CTC (Pay2 structure)
+        const basicSalaryMonthly = yearlyCTC / 2 / 12;
 
-    // Basic Salary = 50% of CTC (Pay2 structure)
-    const basicSalaryYearly = yearlyCTC / 2;
-    const basicSalaryMonthly = basicSalaryYearly / 12;
+        // Provident Fund — 12% of full CTC (employer contribution on monthly base)
+        // E277: IF yearlyCtc <= 180000: min(yearlyCtc, 180000) * 12% ELSE yearlyCtc * 12%
+        const pfYearly  = yearlyCTC <= 180000
+            ? Math.min(yearlyCTC, 180000) * 0.12
+            : yearlyCTC * 0.12;
+        const pfMonthly = pfYearly / 12;
 
-    // Provident Fund (PF) — 12% of Basic Salary
-    // E277: IF yearlyCtc <= 180000: min(yearlyCtc, 180000) * 12% ELSE basicSalaryYearly * 12%
-    const pfYearly = yearlyCTC <= 180000
-        ? Math.min(yearlyCTC, 180000) * 0.12
-        : basicSalaryYearly * 0.12;
-    const pfMonthly = pfYearly / 12;
+        // ESI — 3.25% of gross (only if monthly basic ≤ ₹21,000)
+        // E278: IF monthlyBasic > 20000: 0 ELSE yearlyCtc * 3.25%
+        const esiYearly  = basicSalaryMonthly > 20000 ? 0 : yearlyCTC * 0.0325;
+        const esiMonthly = esiYearly / 12;
 
-    // ESI — 3.25% of gross (only if monthly basic ≤ ₹21,000)
-    // E278: IF monthlyBasic > 20000: 0 ELSE yearlyCtc * 3.25%
-    const esiYearly  = basicSalaryMonthly > 20000 ? 0 : yearlyCTC * 0.0325;
-    const esiMonthly = esiYearly / 12;
+        // Gratuity — 4.165% of CTC (unrounded monthly)
+        // E279: =(yearlyCtc / 100) * 4.165
+        const gratuityMonthly = (yearlyCTC * 0.04165) / 12;
 
-    // Gratuity — 4.165% of CTC (15 days per year)
-    // E279: =(yearlyCtc / 100) * 4.165
-    const gratuityYearly  = yearlyCTC * 0.04165;
-    const gratuityMonthly = gratuityYearly / 12;
+        // 4. REDUNDANCY INSURANCE — F283: monthlyBase * 8.5%
+        const redundancyINR = monthlyBase * 0.085;
 
-    // ── 4. REDUNDANCY INSURANCE (F283) ───────────────
-    // IFS formula: for all India price books → (yearlyCtc/12) * 8.5%
-    const redundancyINR = monthlyBase * 0.085;
+        // 5. HMO — F286
+        const hmoAnnual  = IN_BENEFITS.hmoBaseAnnual + (dependents * IN_BENEFITS.hmoDepPerLife);
+        const hmoMonthly = hmoAnnual / 12 + IN_BENEFITS.companyPharmacy;
 
-    // ── 5. HMO / MEDICAL INSURANCE (F286) ─────────────
-    // Base: ₹55,000/year per life (employee) + ₹7,500/year per dependent
-    // Company Pharmacy: ₹260.94/month (fixed)
-    const hmoAnnual  = IN_BENEFITS.hmoBaseAnnual + (dependents * IN_BENEFITS.hmoDepPerLife);
-    const hmoMonthly = hmoAnnual / 12 + IN_BENEFITS.companyPharmacy;
+        // 6. UNIFORM & IDs — F287
+        const uniformINR = IN_BENEFITS.uniformIds;
 
-    // ── 6. UNIFORM & IDs (F287) ──────────────────────
-    const uniformINR = IN_BENEFITS.uniformIds; // ₹384.59/month
+        // 7. CS BENEFITS — F292
+        const csBenefitsINR = IN_BENEFITS.teamBuilding
+                            + IN_BENEFITS.xmasParty
+                            + IN_BENEFITS.socialClub;
 
-    // ── 7. CS BENEFITS (F292) ────────────────────────
-    // Team Building + XMAS Party + Social Club
-    const csBenefitsINR = IN_BENEFITS.teamBuilding
-                        + IN_BENEFITS.xmasParty
-                        + IN_BENEFITS.socialClub;
+        // 8. CS COSTS / TECH — F297
+        const microsoftINR = IN_BENEFITS.microsoftAUD * audRate;
+        const csCostsINR   = microsoftINR
+                           + IN_BENEFITS.cibStaffcentral
+                           + IN_BENEFITS.profIndemnity
+                           + IN_BENEFITS.comprehensiveInsurance;
 
-    // ── 8. CS COSTS / TECH (F297) ───────────────────
-    // Microsoft: AUD 12.68 converted to INR
-    const microsoftINR = IN_BENEFITS.microsoftAUD * audRate;
-    const csCostsINR   = microsoftINR
-                       + IN_BENEFITS.cibStaffcentral
-                       + IN_BENEFITS.profIndemnity
-                       + IN_BENEFITS.comprehensiveInsurance;
+        // 9. TOTAL BENEFITS — F299
+        const totalBenefitsINR = redundancyINR + hmoMonthly + uniformINR + csBenefitsINR + csCostsINR;
 
-    // ── 9. TOTAL BENEFITS (F299) ─────────────────────
-    // =SUM(F283, F286, F287, F292, F297)
-    const totalBenefitsINR = redundancyINR + hmoMonthly + uniformINR + csBenefitsINR + csCostsINR;
+        // 10. EDC — F249
+        const edcINR  = monthlyBase + nightDiff + totalBenefitsINR + pfMonthly + esiMonthly + gratuityMonthly;
+        const edcCurr = inrToCurr(edcINR);
 
-    // ── 10. EMPLOYEE DIRECT COST (F249) ──────────────
-    // EDC = monthlyBase + nightDiff + totalBenefits
-    const edcINR = monthlyBase + nightDiff + totalBenefitsINR;
+        const dayRateCurr    = inrToCurr(dayRateINR);
+        const hourlyRateCurr = dayRateCurr / 8;
+        const easyLeaveCurr  = dayRateCurr * 0.958;
+        const statutoryINR   = pfMonthly + esiMonthly + gratuityMonthly;
 
-    // ── 11. CS FEE & HARDWARE ────────────────────────
-    const pb     = pbCache[priceBook] || PRICE_BOOKS[priceBook];
-    const csFee  = pb ? (pb[currency] || 0) : 0;
-    const isElev = pb ? (pb.is_elevate || pb.isElevate || false) : false;
-    const mpcFee = getHardwarePrice(hardwareId, currency, isElev);
-    const hwRow  = calcHardwareData.find(p => p.id === parseInt(hardwareId));
+        return {
+            yearlyCTC, monthlyBase, nightDiff, dayRateINR,
+            pfMonthly, esiMonthly, gratuityMonthly, statutoryINR,
+            redundancyINR, hmoMonthly, uniformINR, csBenefitsINR, csCostsINR, microsoftINR,
+            totalBenefitsINR, edcINR, edcCurr,
+            dayRateCurr, hourlyRateCurr, easyLeaveCurr,
+        };
+    }
+
+    // ── Run From / To ────────────────────────────────
+    const cFrom = calcINForCTC(yearlyCTCFrom);
+    const cTo   = calcINForCTC(yearlyCTCTo);
+
+    // ── CS FEE & HARDWARE (shared) ───────────────────
+    const pb      = pbCache[priceBook] || PRICE_BOOKS[priceBook];
+    const csFee   = pb ? (pb[currency] || 0) : 0;
+    const isElev  = pb ? (pb.is_elevate || pb.isElevate || false) : false;
+    const mpcFee  = getHardwarePrice(hardwareId, currency, isElev);
+    const hwRow   = calcHardwareData.find(p => p.id === parseInt(hardwareId));
     const mpcName = hwRow ? hwRow.name : 'No Hardware';
 
-    // ── 12. SETUP FEES ───────────────────────────────
-    // Recruitment fee: ₹1,440,000+ CTC → 299, else 199
-    const recruitmentFeeBase = yearlyCTC >= 1440000 ? 299 : 199;
-    const setupFeeBase       = 200;
-    const setupFee           = SETUP_FEES[currency] || 399;
+    // ── SETUP FEES ───────────────────────────────────
+    const setupFee = SETUP_FEES[currency] || 399;
 
-    // ── 13. TOTALS ───────────────────────────────────
-    const edcCurr     = inrToCurr(edcINR);
-    const totalMonthly = edcCurr + csFee + mpcFee;
-
-    // Rates
-    const dayRateCurr    = inrToCurr(dayRateINR);
-    const hourlyRateCurr = dayRateCurr / 8;
-    const easyLeaveCurr  = dayRateCurr * 0.958;   // same concept as PH/CO
-
-    // Deposit = total monthly × 1.5
-    const depositCurr = totalMonthly * 1.5;
+    // ── TOTALS ───────────────────────────────────────
+    const totalMonthlyFrom = cFrom.edcCurr + csFee + mpcFee;
+    const totalMonthlyTo   = cTo.edcCurr   + csFee + mpcFee;
+    const depositFrom      = totalMonthlyFrom * 1.5;
+    const depositTo        = totalMonthlyTo   * 1.5;
 
     // Quote validity (30 days)
     const validDate = new Date();
     validDate.setDate(validDate.getDate() + 30);
 
-    // ── 14. UPDATE DOM ────────────────────────────────
+    // ── DOM helpers ───────────────────────────────────
     const sel   = id => document.getElementById(id);
     const fmt   = (n, curr) => fmtCurr(n, curr || currency);
-    const fmtIN = n => n != null ? '₹' + Math.round(n).toLocaleString('en-IN') : '—';
+    // INR display: unrounded (let fmtIN show decimals for accuracy)
+    const fmtIN = n => n != null ? '₹' + Number(n.toFixed(2)).toLocaleString('en-IN') : '—';
+    const t     = (id, v) => { const el = sel(id); if (el) el.textContent = v; };
 
-    sel('inResultBaseSalary').textContent  = fmtIN(monthlyBase);
-    sel('inResultEDC').textContent         = fmt(edcCurr);
-    sel('inResultCSFee').textContent       = fmt(csFee);
-    sel('inResultMPC').textContent         = fmt(mpcFee);
-    sel('inResultMPCProduct').textContent  = mpcName;
-    sel('inResultTotalMonthly').textContent = fmt(totalMonthly);
-    sel('inResultSetup').textContent       = fmt(setupFee);
-    sel('inResultDeposit').textContent     = fmt(depositCurr);
-    sel('inResultDayRate').textContent     = fmt(dayRateCurr);
-    sel('inResultHourlyRate').textContent  = fmt(hourlyRateCurr);
-    sel('inResultEasyLeave').textContent   = fmt(easyLeaveCurr);
-    sel('inQuoteValidity').textContent     = validDate.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+    // ── RESULTS CARD ─────────────────────────────────
+    // Base salary shown as From (monthly INR) to To range
+    sel('inResultBaseSalary').textContent = isRange
+        ? fmtIN(cFrom.monthlyBase) + ' to ' + fmtIN(cTo.monthlyBase)
+        : fmtIN(cFrom.monthlyBase);
+    sel('inResultEDC').textContent          = fmtRange(cFrom.edcCurr,          cTo.edcCurr,          currency);
+    sel('inResultCSFee').textContent        = fmt(csFee);
+    sel('inResultMPC').textContent          = fmt(mpcFee);
+    sel('inResultMPCProduct').textContent   = mpcName;
+    sel('inResultTotalMonthly').textContent = fmtRange(totalMonthlyFrom, totalMonthlyTo, currency);
+    sel('inResultSetup').textContent        = fmt(setupFee);
+    sel('inResultDeposit').textContent      = fmtRange(depositFrom,      depositTo,      currency);
+    sel('inResultDayRate').textContent      = fmtRange(cFrom.dayRateCurr, cTo.dayRateCurr, currency);
+    sel('inResultHourlyRate').textContent   = fmtRange(cFrom.hourlyRateCurr, cTo.hourlyRateCurr, currency);
+    sel('inResultEasyLeave').textContent    = fmtRange(cFrom.easyLeaveCurr,   cTo.easyLeaveCurr,   currency);
+    sel('inQuoteValidity').textContent      = validDate.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
 
     // FX display
     const fxVal = parseFloat(fxRow[currency.toLowerCase()]) || 1;
@@ -458,72 +467,74 @@ function calculateIN() {
     sel('inResultFXDesc').textContent = `AUD: 1 AUD = ${audRate.toFixed(4)} INR`;
     sel('inResultFXDate').textContent = fxRow.month_name || '';
 
-    // ── 15. EDC BREAKDOWN TILES ───────────────────────
-    const t = (id, v) => { const el = sel(id); if (el) el.textContent = v; };
+    // ── EDC BREAKDOWN TILES (From values; range shown where applicable) ───
+    // Summary tiles
+    const fmtRangeIN = (a, b) => isRange
+        ? fmtIN(a) + ' – ' + fmtIN(b)
+        : fmtIN(a);
 
-    // Summary formula tiles
-    const statutoryINR = pfMonthly + esiMonthly + gratuityMonthly;
-    t('inEdcBasicSalary',     fmt(inrToCurr(monthlyBase + nightDiff)));
-    t('inEdcBasicSalaryINR',  fmtIN(monthlyBase + nightDiff));
-    t('inEdcStatutory',       fmt(inrToCurr(statutoryINR)));
-    t('inEdcStatutoryINR',    fmtIN(statutoryINR));
-    t('inEdcCSBenefits',      fmt(inrToCurr(redundancyINR + hmoMonthly + uniformINR + csBenefitsINR)));
-    t('inEdcCSBenefitsINR',   fmtIN(redundancyINR + hmoMonthly + uniformINR + csBenefitsINR));
-    t('inEdcCSTech',          fmt(inrToCurr(csCostsINR)));
-    t('inEdcCSTechINR',       fmtIN(csCostsINR));
-    t('inEdcTotal',           fmt(edcCurr));
-    t('inEdcTotalINR',        fmtIN(edcINR));
+    t('inEdcBasicSalary',    fmtRange(inrToCurr(cFrom.monthlyBase + cFrom.nightDiff), inrToCurr(cTo.monthlyBase + cTo.nightDiff), currency));
+    t('inEdcBasicSalaryINR', fmtRangeIN(cFrom.monthlyBase + cFrom.nightDiff, cTo.monthlyBase + cTo.nightDiff));
+    t('inEdcStatutory',      fmtRange(inrToCurr(cFrom.statutoryINR), inrToCurr(cTo.statutoryINR), currency));
+    t('inEdcStatutoryINR',   fmtRangeIN(cFrom.statutoryINR, cTo.statutoryINR));
+    t('inEdcCSBenefits',     fmtRange(inrToCurr(cFrom.redundancyINR + cFrom.hmoMonthly + cFrom.uniformINR + cFrom.csBenefitsINR),
+                                      inrToCurr(cTo.redundancyINR   + cTo.hmoMonthly   + cTo.uniformINR   + cTo.csBenefitsINR),   currency));
+    t('inEdcCSBenefitsINR',  fmtRangeIN(cFrom.redundancyINR + cFrom.hmoMonthly + cFrom.uniformINR + cFrom.csBenefitsINR,
+                                         cTo.redundancyINR   + cTo.hmoMonthly   + cTo.uniformINR   + cTo.csBenefitsINR));
+    t('inEdcCSTech',         fmtRange(inrToCurr(cFrom.csCostsINR), inrToCurr(cTo.csCostsINR), currency));
+    t('inEdcCSTechINR',      fmtRangeIN(cFrom.csCostsINR, cTo.csCostsINR));
+    t('inEdcTotal',          fmtRange(cFrom.edcCurr, cTo.edcCurr, currency));
+    t('inEdcTotalINR',       fmtRangeIN(cFrom.edcINR, cTo.edcINR));
 
-    // Detailed breakdown table
-    // Basic salary section
-    t('inEdcBasicSalaryINR2',  fmtIN(monthlyBase));
-    t('inEdcBasicSalary2',     fmt(inrToCurr(monthlyBase)));
-    t('inEdcNightDiffINR',     fmtIN(nightDiff));
-    t('inEdcNightDiff',        fmt(inrToCurr(nightDiff)));
-    const basicSubINR = monthlyBase + nightDiff;
-    t('inBfBasicSubINR',       fmtIN(basicSubINR));
-    t('inBfBasicSub',          fmt(inrToCurr(basicSubINR)));
+    // Detailed breakdown (From values for line items, range for subtotals)
+    const c = cFrom; // line items use From; subtotals show range
+    t('inEdcBasicSalaryINR2', fmtRangeIN(c.monthlyBase,    cTo.monthlyBase));
+    t('inEdcBasicSalary2',    fmtRange(inrToCurr(c.monthlyBase),  inrToCurr(cTo.monthlyBase),  currency));
+    t('inEdcNightDiffINR',    fmtRangeIN(c.nightDiff,       cTo.nightDiff));
+    t('inEdcNightDiff',       fmtRange(inrToCurr(c.nightDiff),    inrToCurr(cTo.nightDiff),    currency));
+    t('inBfBasicSubINR',      fmtRangeIN(c.monthlyBase + c.nightDiff, cTo.monthlyBase + cTo.nightDiff));
+    t('inBfBasicSub',         fmtRange(inrToCurr(c.monthlyBase + c.nightDiff), inrToCurr(cTo.monthlyBase + cTo.nightDiff), currency));
 
-    // Statutory section
-    t('inEdcPFINR',            fmtIN(pfMonthly));
-    t('inEdcPF',               fmt(inrToCurr(pfMonthly)));
-    t('inEdcESIINR',           fmtIN(esiMonthly));
-    t('inEdcESI',              fmt(inrToCurr(esiMonthly)));
-    t('inEdcGratuityINR',      fmtIN(gratuityMonthly));
-    t('inEdcGratuity',         fmt(inrToCurr(gratuityMonthly)));
-    t('inBfStatutorySubINR',   fmtIN(statutoryINR));
-    t('inBfStatutorySub',      fmt(inrToCurr(statutoryINR)));
+    t('inEdcPFINR',           fmtRangeIN(c.pfMonthly,       cTo.pfMonthly));
+    t('inEdcPF',              fmtRange(inrToCurr(c.pfMonthly),      inrToCurr(cTo.pfMonthly),      currency));
+    t('inEdcESIINR',          fmtRangeIN(c.esiMonthly,      cTo.esiMonthly));
+    t('inEdcESI',             fmtRange(inrToCurr(c.esiMonthly),     inrToCurr(cTo.esiMonthly),     currency));
+    t('inEdcGratuityINR',     fmtRangeIN(c.gratuityMonthly, cTo.gratuityMonthly));
+    t('inEdcGratuity',        fmtRange(inrToCurr(c.gratuityMonthly), inrToCurr(cTo.gratuityMonthly), currency));
+    t('inBfStatutorySubINR',  fmtRangeIN(c.statutoryINR,    cTo.statutoryINR));
+    t('inBfStatutorySub',     fmtRange(inrToCurr(c.statutoryINR),   inrToCurr(cTo.statutoryINR),   currency));
 
-    // CS Benefits section
-    t('inEdcRedundancyINR',    fmtIN(redundancyINR));
-    t('inEdcRedundancy',       fmt(inrToCurr(redundancyINR)));
-    t('inEdcHMOINR',           fmtIN(hmoMonthly));
-    t('inEdcHMO',              fmt(inrToCurr(hmoMonthly)));
-    t('inEdcUniformINR',       fmtIN(uniformINR));
-    t('inEdcUniform',          fmt(inrToCurr(uniformINR)));
-    t('inEdcCSBenefitsINR2',   fmtIN(csBenefitsINR));
-    t('inEdcCSBenefits2',      fmt(inrToCurr(csBenefitsINR)));
-    const csBenSubINR = redundancyINR + hmoMonthly + uniformINR + csBenefitsINR;
-    t('inBfBenefitsSubINR',    fmtIN(csBenSubINR));
-    t('inBfBenefitsSub',       fmt(inrToCurr(csBenSubINR)));
+    // CS Benefits — these are fixed costs (same for From and To, except redundancy which scales with salary)
+    t('inEdcRedundancyINR',   fmtRangeIN(c.redundancyINR,   cTo.redundancyINR));
+    t('inEdcRedundancy',      fmtRange(inrToCurr(c.redundancyINR),  inrToCurr(cTo.redundancyINR),  currency));
+    t('inEdcHMOINR',          fmtIN(c.hmoMonthly));
+    t('inEdcHMO',             fmt(inrToCurr(c.hmoMonthly)));
+    t('inEdcUniformINR',      fmtIN(c.uniformINR));
+    t('inEdcUniform',         fmt(inrToCurr(c.uniformINR)));
+    t('inEdcCSBenefitsINR2',  fmtIN(c.csBenefitsINR));
+    t('inEdcCSBenefits2',     fmt(inrToCurr(c.csBenefitsINR)));
+    const csBenSubFrom = c.redundancyINR + c.hmoMonthly + c.uniformINR + c.csBenefitsINR;
+    const csBenSubTo   = cTo.redundancyINR + cTo.hmoMonthly + cTo.uniformINR + cTo.csBenefitsINR;
+    t('inBfBenefitsSubINR',   fmtRangeIN(csBenSubFrom, csBenSubTo));
+    t('inBfBenefitsSub',      fmtRange(inrToCurr(csBenSubFrom), inrToCurr(csBenSubTo), currency));
 
-    // Tech & Costs section
-    t('inEdcMicrosoftINR',     fmtIN(microsoftINR));
-    t('inEdcMicrosoft',        fmt(inrToCurr(microsoftINR)));
+    // Tech costs — fixed
+    t('inEdcMicrosoftINR',     fmtIN(c.microsoftINR));
+    t('inEdcMicrosoft',        fmt(inrToCurr(c.microsoftINR)));
     t('inEdcCIBINR',           fmtIN(IN_BENEFITS.cibStaffcentral));
     t('inEdcCIB',              fmt(inrToCurr(IN_BENEFITS.cibStaffcentral)));
     t('inEdcIndemnityINR',     fmtIN(IN_BENEFITS.profIndemnity));
     t('inEdcIndemnity',        fmt(inrToCurr(IN_BENEFITS.profIndemnity)));
     t('inEdcComprehensiveINR', fmtIN(IN_BENEFITS.comprehensiveInsurance));
     t('inEdcComprehensive',    fmt(inrToCurr(IN_BENEFITS.comprehensiveInsurance)));
-    t('inBfTechSubINR',        fmtIN(csCostsINR));
-    t('inBfTechSub',           fmt(inrToCurr(csCostsINR)));
+    t('inBfTechSubINR',        fmtIN(c.csCostsINR));
+    t('inBfTechSub',           fmt(inrToCurr(c.csCostsINR)));
 
     // Grand total
-    t('inBfTotalINR',          fmtIN(edcINR));
-    t('inBfTotal',             fmt(edcCurr));
+    t('inBfTotalINR', fmtRangeIN(c.edcINR, cTo.edcINR));
+    t('inBfTotal',    fmtRange(c.edcCurr, cTo.edcCurr, currency));
 
-    // Candidate/role summary in results card
+    // Candidate/role summary
     t('inResultCandidateName', document.getElementById('inCandidateName')?.value || 'To Be Advised');
     t('inResultRoleName',      document.getElementById('inRoleSearchInput')?.value
                               || document.getElementById('inRoleName')?.value || 'To Be Advised');
@@ -561,7 +572,8 @@ async function saveQuoteIN() {
     const currency    = document.getElementById('inCurrency').value;
     const priceBook   = document.getElementById('inPriceBook').value;
     const hardwareId  = document.getElementById('inMpcHardware').value;
-    const yearlyCTC   = parseFloat(document.getElementById('inYearlyCTC').value) || 0;
+    const yearlyCTC      = parseFloat(document.getElementById('inYearlyCTCFrom').value) || 0;
+    const yearlyCTCTo    = parseFloat(document.getElementById('inYearlyCTCTo').value)   || yearlyCTC;
     const dependents  = parseInt(document.getElementById('inDependents').value)  || 3;
     const nightDiffHours = parseFloat(document.getElementById('inNightDiffHours').value) || 0;
 
@@ -590,7 +602,7 @@ async function saveQuoteIN() {
                       || 'To Be Advised',
         custom_role_name: document.getElementById('inRoleName')?.value?.trim() || null,
         base_salary_from: yearlyCTC,
-        base_salary_to:   yearlyCTC,
+        base_salary_to:   yearlyCTCTo,
         currency,
         price_book:      priceBook,
         night_diff_hours: nightDiffHours,
@@ -638,7 +650,8 @@ function loadQuoteIntoCalcIN(quote) {
     document.getElementById('inCandidateName').value    = quote.candidate_name || '';
     document.getElementById('inRoleSearchInput').value  = quote.role_name || '';
     document.getElementById('inRoleName').value         = quote.custom_role_name || '';
-    document.getElementById('inYearlyCTC').value        = quote.base_salary_from || 0;
+    document.getElementById('inYearlyCTCFrom').value = quote.base_salary_from || 0;
+    document.getElementById('inYearlyCTCTo').value   = quote.base_salary_to   || quote.base_salary_from || 0;
     document.getElementById('inCurrency').value         = quote.currency || 'AUD';
     document.getElementById('inPriceBook').value        = quote.price_book || '';
     document.getElementById('inNightDiffHours').value   = quote.night_diff_hours || 0;

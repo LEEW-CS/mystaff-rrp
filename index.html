@@ -1375,9 +1375,16 @@
                         </div>
                         <div class="form-group">
                             <label>Yearly CTC (INR ₹):</label>
-                            <div class="salary-input-group">
-                                <span class="salary-prefix" style="font-size:0.7rem;">₹</span>
-                                <input type="number" id="inYearlyCTC" value="600000" min="100000" step="10000" placeholder="Annual CTC in INR" oninput="calculateIN()">
+                            <div class="salary-range-row">
+                                <div class="salary-input-group">
+                                    <span class="salary-prefix" style="font-size:0.7rem;">₹</span>
+                                    <input type="number" id="inYearlyCTCFrom" value="600000" min="100000" step="10000" placeholder="From" oninput="calculateIN()">
+                                </div>
+                                <span class="salary-separator">to</span>
+                                <div class="salary-input-group">
+                                    <span class="salary-prefix" style="font-size:0.7rem;">₹</span>
+                                    <input type="number" id="inYearlyCTCTo" value="1000000" min="100000" step="10000" placeholder="To" oninput="calculateIN()">
+                                </div>
                             </div>
                             <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem;">Enter the full annual CTC package (Cost to Company) in Indian Rupees</div>
                         </div>
