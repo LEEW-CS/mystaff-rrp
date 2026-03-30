@@ -1488,9 +1488,55 @@
         </div><!-- /page-salary-research -->
 
         <div class="page" id="page-team-builder">
-            <div class="card">
-                <div class="card-title">🏗️ Team Builder</div>
-                <p style="color:var(--text-muted);">Team Builder widget coming soon.</p>
+            <div class="card" style="margin-bottom:1rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+                    <div class="card-title" style="margin-bottom:0;">🏗️ Team Builder</div>
+                    <div style="display:flex; gap:0.5rem; border-bottom:2px solid var(--border); padding-bottom:0;">
+                        <button id="tb-tab-preview"  onclick="tbSwitchTab('preview')"  style="background:none;border:none;padding:0.5rem 1rem;font-size:0.875rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);">Preview</button>
+                        <button id="tb-tab-embed"    onclick="tbSwitchTab('embed')"    style="background:none;border:none;padding:0.5rem 1rem;font-size:0.875rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);">Embed Code</button>
+                        <button id="tb-tab-settings" onclick="tbSwitchTab('settings')" style="background:none;border:none;padding:0.5rem 1rem;font-size:0.875rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);">Settings</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Tab -->
+            <div id="tb-panel-preview">
+                <div id="tb-widget-mount"></div>
+            </div>
+
+            <!-- Embed Tab -->
+            <div id="tb-panel-embed" style="display:none;">
+                <div class="card">
+                    <div class="card-title">Embed Code</div>
+                    <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:1rem;">Copy this snippet into any webpage to embed the Team Builder widget.</p>
+                    <pre id="tb-embed-code" style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:1rem; font-size:0.8rem; white-space:pre-wrap; overflow-x:auto;"></pre>
+                    <button class="btn btn-primary btn-sm" onclick="tbCopyEmbed()" style="margin-top:0.75rem;">Copy to Clipboard</button>
+                    <span id="tb-copy-feedback" style="display:none; margin-left:0.75rem; font-size:0.875rem; color:var(--success);">✓ Copied!</span>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="tb-panel-settings" style="display:none;">
+                <div class="card">
+                    <div class="card-title">Onshore Salary Benchmarks (AUD/month)</div>
+                    <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:1rem;">Default fallback values used when a role doesn't have a specific onshore benchmark.</p>
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; max-width:480px;">
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.35rem;">Junior</label>
+                            <input type="number" id="tb-stub-junior" value="5800" style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.875rem;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.35rem;">Mid</label>
+                            <input type="number" id="tb-stub-mid" value="7500" style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.875rem;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.35rem;">Senior</label>
+                            <input type="number" id="tb-stub-senior" value="9800" style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.875rem;">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="tbSaveStubs()" style="margin-top:1rem;">Save</button>
+                    <span id="tb-stubs-saved" style="display:none; margin-left:0.75rem; font-size:0.875rem; color:var(--success);">✓ Saved!</span>
+                </div>
             </div>
         </div><!-- /page-team-builder -->
 
@@ -2717,6 +2763,7 @@
     <script src="js/admin-night-meals.js"></script>
     <script src="js/proposal-generator.js"></script>
     <script src="js/salary-research.js"></script>
+    <script src="js/teambuilder-widget.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
