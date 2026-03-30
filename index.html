@@ -117,11 +117,6 @@
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 <span class="nav-item-label">Saved Quotes</span>
             </div>
-            <div class="nav-section-title">Tools</div>
-            <div class="nav-item" data-page="team-builder" data-label="Team Builder">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                <span class="nav-item-label">Team Builder</span>
-            </div>
             <div class="nav-section-title sales-visible">Administration</div>
             <div class="nav-item sales-visible" data-page="salary-ranges" data-label="Salary Ranges">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -162,9 +157,14 @@
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" /></svg>
                 <span class="nav-item-label">Night Meals</span>
             </div>
+            <div class="nav-section-title admin-only">Tools</div>
             <div class="nav-item admin-only" data-page="salary-research" data-label="Salary Research">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 <span class="nav-item-label">Salary Research</span>
+            </div>
+            <div class="nav-item admin-only" data-page="team-builder" data-label="Team Builder">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span class="nav-item-label">Team Builder</span>
             </div>
         </div>
         <div class="sidebar-footer">
@@ -2957,6 +2957,40 @@
         </div>
     </div>
 
+        <!-- Team Builder Page -->
+        <div class="page" id="page-team-builder">
+            <div class="page-header">
+                <h1>🏗️ Team Builder</h1>
+                <p>Build and embed an interactive team cost estimator widget</p>
+            </div>
+            <div class="card" style="padding:1rem;">
+                <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.25rem;">
+                    <button id="tb-tab-preview"  onclick="tbSwitchTab('preview')"  style="background:none;border:none;border-bottom:2px solid transparent;padding:0.5rem 1.25rem;cursor:pointer;font-weight:600;font-size:0.9rem;color:var(--text-muted);margin-bottom:-2px;">Preview</button>
+                    <button id="tb-tab-embed"    onclick="tbSwitchTab('embed')"    style="background:none;border:none;border-bottom:2px solid transparent;padding:0.5rem 1.25rem;cursor:pointer;font-weight:600;font-size:0.9rem;color:var(--text-muted);margin-bottom:-2px;">Embed Code</button>
+                    <button id="tb-tab-settings" onclick="tbSwitchTab('settings')" style="background:none;border:none;border-bottom:2px solid transparent;padding:0.5rem 1.25rem;cursor:pointer;font-weight:600;font-size:0.9rem;color:var(--text-muted);margin-bottom:-2px;">Settings</button>
+                </div>
+                <div id="tb-panel-preview"><div id="tb-widget-mount"></div></div>
+                <div id="tb-panel-embed" style="display:none;">
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">Copy this snippet into any webpage to embed the Team Builder widget:</p>
+                    <pre id="tb-embed-code" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:1rem;font-size:0.78rem;white-space:pre-wrap;word-break:break-all;"></pre>
+                    <button class="btn btn-primary btn-sm" onclick="tbCopyEmbed()" style="margin-top:0.75rem;">Copy to Clipboard</button>
+                    <span id="tb-copy-feedback" style="display:none;margin-left:0.75rem;color:#22c55e;font-size:0.85rem;">✓ Copied!</span>
+                </div>
+                <div id="tb-panel-settings" style="display:none;">
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">Onshore salary stubs used for savings comparison (AUD/month):</p>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;max-width:480px;">
+                        <div><label style="font-size:0.78rem;color:var(--text-muted);">Junior</label><input type="number" id="tb-stub-junior" value="5800" style="width:100%;margin-top:0.25rem;"></div>
+                        <div><label style="font-size:0.78rem;color:var(--text-muted);">Mid</label><input type="number" id="tb-stub-mid" value="7500" style="width:100%;margin-top:0.25rem;"></div>
+                        <div><label style="font-size:0.78rem;color:var(--text-muted);">Senior</label><input type="number" id="tb-stub-senior" value="9800" style="width:100%;margin-top:0.25rem;"></div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="tbSaveStubs()" style="margin-top:1rem;">Save</button>
+                    <span id="tb-stubs-saved" style="display:none;margin-left:0.75rem;color:#22c55e;font-size:0.85rem;">✓ Saved!</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -2982,6 +3016,7 @@
     <script src="js/admin-night-meals.js"></script>
     <script src="js/proposal-generator.js"></script>
     <script src="js/salary-research.js"></script>
+    <script src="js/teambuilder-widget.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
