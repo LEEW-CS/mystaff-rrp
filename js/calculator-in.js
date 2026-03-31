@@ -46,8 +46,8 @@ const IN_BENEFITS = {
     profIndemnity:         150.62,   // F295
     comprehensiveInsurance: 224.04,  // F296
     microsoftAUD:           12.68,   // F293 — converted to INR via FX at calc time
-    hmoBaseAnnual:        55000,     // E284 — base per-life premium, scaled by dependents
-    hmoDepPerLife:         7500,     // Additional per dependent per year (approx)
+    hmoBaseAnnual:        55000,     // E284 — flat per-life annual premium (India: no dependent scaling)
+    // hmoDepPerLife not used for India — HMO is flat rate per staff member
 };
 
 // ── Init ────────────────────────────────────────────
@@ -309,7 +309,7 @@ document.addEventListener('click', (e) => {
 function calculateIN() {
     const fxRow = getINSelectedFXRates() || {
         // Fallback: March 2026 approximate rates (INR per 1 unit of foreign currency)
-        usd: 86.5, aud: 54.8, gbp: 110.2, hkd: 11.1,
+        usd: 86.5, aud: 64.80, gbp: 110.2, hkd: 11.1,
         sgd: 64.8, eur: 94.2, cad: 63.0, nzd: 52.3,
     };
 
@@ -332,8 +332,8 @@ function calculateIN() {
         return rate ? inrAmt / rate : 0;
     }
 
-    // AUD rate needed for Microsoft cost conversion
-    const audRate = parseFloat(fxRow['aud']) || 54.8; // INR per 1 AUD
+    // AUD rate needed for Microsoft cost conversion (INR per 1 AUD)
+    const audRate = parseFloat(fxRow['aud']) || 64.80;
 
     // ── EDC formula for a given CTC ─────────────────
     function calcINForCTC(yearlyCTC) {
@@ -370,9 +370,8 @@ function calculateIN() {
         // 4. REDUNDANCY INSURANCE — F283: monthlyBase * 8.5%
         const redundancyINR = monthlyBase * 0.085;
 
-        // 5. HMO — F286
-        const hmoAnnual  = IN_BENEFITS.hmoBaseAnnual + (dependents * IN_BENEFITS.hmoDepPerLife);
-        const hmoMonthly = hmoAnnual / 12 + IN_BENEFITS.companyPharmacy;
+        // 5. HMO — F286: flat per-life annual premium (no dependent scaling for India)
+        const hmoMonthly = IN_BENEFITS.hmoBaseAnnual / 12 + IN_BENEFITS.companyPharmacy;
 
         // 6. UNIFORM & IDs — F287
         const uniformINR = IN_BENEFITS.uniformIds;
@@ -392,8 +391,9 @@ function calculateIN() {
         // 9. TOTAL BENEFITS — F299
         const totalBenefitsINR = redundancyINR + hmoMonthly + uniformINR + csBenefitsINR + csCostsINR;
 
-        // 10. EDC — F249
-        const edcINR  = monthlyBase + nightDiff + totalBenefitsINR + pfMonthly + esiMonthly + gratuityMonthly;
+        // 10. EDC — Base + Night Diff + Benefits only
+        // Statutory (PF, ESI, Gratuity) sits OUTSIDE EDC — shown separately as employer contributions
+        const edcINR  = monthlyBase + nightDiff + totalBenefitsINR;
         const edcCurr = inrToCurr(edcINR);
 
         const dayRateCurr    = inrToCurr(dayRateINR);
