@@ -53,7 +53,15 @@ const IN_BENEFITS = {
 // ── Init ────────────────────────────────────────────
 async function initCalculatorIN() {
     if (!calcFXData.length) await loadCalcFXRates();
-    inFXData = calcFXData.filter(r => r.market === 'IN');
+    // Normalise India FX rows: DB stores inr_usd, inr_aud etc — map to plain usd, aud for inrToCurr()
+    inFXData = calcFXData
+        .filter(r => r.market === 'IN')
+        .map(r => ({
+            ...r,
+            usd: r.inr_usd, aud: r.inr_aud, gbp: r.inr_gbp,
+            eur: r.inr_eur, hkd: r.inr_hkd, sgd: r.inr_sgd,
+            cad: r.inr_cad, nzd: r.inr_nzd, php: r.inr_php,
+        }));
     populateINExchangeRateDropdown();
     if (!calcHardwareData.length) await loadCalcHardware();
     populateINHardwareDropdown();
@@ -347,9 +355,24 @@ function calculateIN() {
             ? (dayRateINR / 8) * 0.10 * (nightDiffHrs * 22)
             : 0;
 
-        // 3. STATUTORY BENEFITS
-        // Basic Salary = 50% of CTC (Pay2 structure)
-        const basicSalaryMonthly = yearlyCTC / 2 / 12;
+        // 3. PAY2 SALARY STRUCTURE (informational breakdown — all sum to CTC)
+        const basicSalaryMonthly = yearlyCTC * 0.50 / 12;           // 50% of CTC / 12
+        const hraMonthly         = basicSalaryMonthly * 0.40;        // 40% of basic
+        const vehicleMonthly     = 21600 / 12;                       // Pay2 below 1600cc fixed
+        const telephoneMonthly   = 12000 / 12;                       // Pay2 fixed
+        const childrenEdMonthly  = 2400 / 12;                        // fixed
+        const ltaMonthly         = basicSalaryMonthly / 12;          // 1 month basic / 12 months
+        const sodexoMonthly      = 0;                                 // not modelled
+        const booksMonthly       = 48000 / 12;                       // Pay2 fixed
+        // Project Allowance = remainder after all named allowances + statutory
+        const pfYearlyForPA      = yearlyCTC * 0.12;
+        const esiYearlyForPA     = basicSalaryMonthly > 20000 ? 0 : yearlyCTC * 0.0325;
+        const namedYearly        = (basicSalaryMonthly + hraMonthly + vehicleMonthly + telephoneMonthly
+                                   + childrenEdMonthly + ltaMonthly + sodexoMonthly + booksMonthly) * 12;
+        const projectMonthly     = (yearlyCTC - namedYearly - pfYearlyForPA - esiYearlyForPA) / 12;
+        // Other allowances subtotal (excludes basic + HRA, matches spreadsheet "Employee is paid these" row)
+        const otherAllowancesMonthly = vehicleMonthly + telephoneMonthly + childrenEdMonthly
+                                     + ltaMonthly + sodexoMonthly + booksMonthly + projectMonthly;
 
         // Provident Fund — 12% of full CTC (employer contribution on monthly base)
         // E277: IF yearlyCtc <= 180000: min(yearlyCtc, 180000) * 12% ELSE yearlyCtc * 12%
@@ -403,7 +426,13 @@ function calculateIN() {
 
         return {
             yearlyCTC, monthlyBase, nightDiff, dayRateINR,
+            // Pay2 salary structure
+            basicSalaryMonthly, hraMonthly, vehicleMonthly, telephoneMonthly,
+            childrenEdMonthly, ltaMonthly, sodexoMonthly, booksMonthly,
+            projectMonthly, otherAllowancesMonthly,
+            // Statutory (employer contribution — outside EDC)
             pfMonthly, esiMonthly, gratuityMonthly, statutoryINR,
+            // CS operational costs
             redundancyINR, hmoMonthly, uniformINR, csBenefitsINR, csCostsINR, microsoftINR,
             totalBenefitsINR, edcINR, edcCurr,
             dayRateCurr, hourlyRateCurr, easyLeaveCurr,
@@ -459,78 +488,119 @@ function calculateIN() {
     sel('inResultEasyLeave').textContent    = fmtRange(cFrom.easyLeaveCurr,   cTo.easyLeaveCurr,   currency);
     sel('inQuoteValidity').textContent      = validDate.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
 
-    // FX display
+    // FX display — show selected currency rate (INR per 1 unit of foreign currency)
     const fxVal = parseFloat(fxRow[currency.toLowerCase()]) || 1;
-    sel('inResultFXRate').textContent = currency === 'AUD'
-        ? `1 AUD = ${fxVal.toFixed(4)} INR`
-        : `1 ${currency} = ${fxVal.toFixed(4)} INR`;
-    sel('inResultFXDesc').textContent = `AUD: 1 AUD = ${audRate.toFixed(4)} INR`;
-    sel('inResultFXDate').textContent = fxRow.month_name || '';
+    sel('inResultFXRate').textContent = `1 ${currency} = ${fxVal.toFixed(4)} INR`;
+    sel('inResultFXDesc').textContent = fxRow.month_name || '';
+    sel('inResultFXDate').textContent = '';
 
-    // ── EDC BREAKDOWN TILES (From values; range shown where applicable) ───
-    // Summary tiles
-    const fmtRangeIN = (a, b) => isRange
-        ? fmtIN(a) + ' – ' + fmtIN(b)
-        : fmtIN(a);
+    // ── EDC BREAKDOWN TILES & DETAILED BREAKDOWN ─────────────────────────
+    const fmtRangeIN = (a, b) => isRange ? fmtIN(a) + ' – ' + fmtIN(b) : fmtIN(a);
+    const c = cFrom; // line items use From value; subtotals/totals show range
 
-    t('inEdcBasicSalary',    fmtRange(inrToCurr(cFrom.monthlyBase + cFrom.nightDiff), inrToCurr(cTo.monthlyBase + cTo.nightDiff), currency));
-    t('inEdcBasicSalaryINR', fmtRangeIN(cFrom.monthlyBase + cFrom.nightDiff, cTo.monthlyBase + cTo.nightDiff));
-    t('inEdcStatutory',      fmtRange(inrToCurr(cFrom.statutoryINR), inrToCurr(cTo.statutoryINR), currency));
-    t('inEdcStatutoryINR',   fmtRangeIN(cFrom.statutoryINR, cTo.statutoryINR));
-    t('inEdcCSBenefits',     fmtRange(inrToCurr(cFrom.redundancyINR + cFrom.hmoMonthly + cFrom.uniformINR + cFrom.csBenefitsINR),
-                                      inrToCurr(cTo.redundancyINR   + cTo.hmoMonthly   + cTo.uniformINR   + cTo.csBenefitsINR),   currency));
-    t('inEdcCSBenefitsINR',  fmtRangeIN(cFrom.redundancyINR + cFrom.hmoMonthly + cFrom.uniformINR + cFrom.csBenefitsINR,
-                                         cTo.redundancyINR   + cTo.hmoMonthly   + cTo.uniformINR   + cTo.csBenefitsINR));
-    t('inEdcCSTech',         fmtRange(inrToCurr(cFrom.csCostsINR), inrToCurr(cTo.csCostsINR), currency));
-    t('inEdcCSTechINR',      fmtRangeIN(cFrom.csCostsINR, cTo.csCostsINR));
-    t('inEdcTotal',          fmtRange(cFrom.edcCurr, cTo.edcCurr, currency));
-    t('inEdcTotalINR',       fmtRangeIN(cFrom.edcINR, cTo.edcINR));
+    // ── TILES: 3 groups + total ──────────────────────────────────────────
+    // Tile 1: Gross Salary = monthlyBase + nightDiff
+    const grossFrom = cFrom.monthlyBase + cFrom.nightDiff;
+    const grossTo   = cTo.monthlyBase   + cTo.nightDiff;
+    t('inEdcBasicSalary',    fmtRange(inrToCurr(grossFrom), inrToCurr(grossTo), currency));
+    t('inEdcBasicSalaryINR', fmtRangeIN(grossFrom, grossTo));
 
-    // Detailed breakdown (From values for line items, range for subtotals)
-    const c = cFrom; // line items use From; subtotals show range
-    t('inEdcBasicSalaryINR2', fmtRangeIN(c.monthlyBase,    cTo.monthlyBase));
-    t('inEdcBasicSalary2',    fmtRange(inrToCurr(c.monthlyBase),  inrToCurr(cTo.monthlyBase),  currency));
-    t('inEdcNightDiffINR',    fmtRangeIN(c.nightDiff,       cTo.nightDiff));
-    t('inEdcNightDiff',       fmtRange(inrToCurr(c.nightDiff),    inrToCurr(cTo.nightDiff),    currency));
-    t('inBfBasicSubINR',      fmtRangeIN(c.monthlyBase + c.nightDiff, cTo.monthlyBase + cTo.nightDiff));
-    t('inBfBasicSub',         fmtRange(inrToCurr(c.monthlyBase + c.nightDiff), inrToCurr(cTo.monthlyBase + cTo.nightDiff), currency));
+    // Tile 2: Employer Contribution = PF + ESI + Gratuity
+    t('inEdcStatutory',    fmtRange(inrToCurr(cFrom.statutoryINR), inrToCurr(cTo.statutoryINR), currency));
+    t('inEdcStatutoryINR', fmtRangeIN(cFrom.statutoryINR, cTo.statutoryINR));
 
-    t('inEdcPFINR',           fmtRangeIN(c.pfMonthly,       cTo.pfMonthly));
-    t('inEdcPF',              fmtRange(inrToCurr(c.pfMonthly),      inrToCurr(cTo.pfMonthly),      currency));
-    t('inEdcESIINR',          fmtRangeIN(c.esiMonthly,      cTo.esiMonthly));
-    t('inEdcESI',             fmtRange(inrToCurr(c.esiMonthly),     inrToCurr(cTo.esiMonthly),     currency));
-    t('inEdcGratuityINR',     fmtRangeIN(c.gratuityMonthly, cTo.gratuityMonthly));
-    t('inEdcGratuity',        fmtRange(inrToCurr(c.gratuityMonthly), inrToCurr(cTo.gratuityMonthly), currency));
-    t('inBfStatutorySubINR',  fmtRangeIN(c.statutoryINR,    cTo.statutoryINR));
-    t('inBfStatutorySub',     fmtRange(inrToCurr(c.statutoryINR),   inrToCurr(cTo.statutoryINR),   currency));
+    // Tile 3: CS Operational Cost = totalBenefitsINR
+    t('inEdcCSBenefits',    fmtRange(inrToCurr(cFrom.totalBenefitsINR), inrToCurr(cTo.totalBenefitsINR), currency));
+    t('inEdcCSBenefitsINR', fmtRangeIN(cFrom.totalBenefitsINR, cTo.totalBenefitsINR));
 
-    // CS Benefits — these are fixed costs (same for From and To, except redundancy which scales with salary)
-    t('inEdcRedundancyINR',   fmtRangeIN(c.redundancyINR,   cTo.redundancyINR));
-    t('inEdcRedundancy',      fmtRange(inrToCurr(c.redundancyINR),  inrToCurr(cTo.redundancyINR),  currency));
-    t('inEdcHMOINR',          fmtIN(c.hmoMonthly));
-    t('inEdcHMO',             fmt(inrToCurr(c.hmoMonthly)));
-    t('inEdcUniformINR',      fmtIN(c.uniformINR));
-    t('inEdcUniform',         fmt(inrToCurr(c.uniformINR)));
-    t('inEdcCSBenefitsINR2',  fmtIN(c.csBenefitsINR));
-    t('inEdcCSBenefits2',     fmt(inrToCurr(c.csBenefitsINR)));
-    const csBenSubFrom = c.redundancyINR + c.hmoMonthly + c.uniformINR + c.csBenefitsINR;
-    const csBenSubTo   = cTo.redundancyINR + cTo.hmoMonthly + cTo.uniformINR + cTo.csBenefitsINR;
-    t('inBfBenefitsSubINR',   fmtRangeIN(csBenSubFrom, csBenSubTo));
-    t('inBfBenefitsSub',      fmtRange(inrToCurr(csBenSubFrom), inrToCurr(csBenSubTo), currency));
+    // Tile 4: Total EDC
+    t('inEdcTotal',    fmtRange(cFrom.edcCurr, cTo.edcCurr, currency));
+    t('inEdcTotalINR', fmtRangeIN(cFrom.edcINR, cTo.edcINR));
 
-    // Tech costs — fixed
-    t('inEdcMicrosoftINR',     fmtIN(c.microsoftINR));
-    t('inEdcMicrosoft',        fmt(inrToCurr(c.microsoftINR)));
-    t('inEdcCIBINR',           fmtIN(IN_BENEFITS.cibStaffcentral));
-    t('inEdcCIB',              fmt(inrToCurr(IN_BENEFITS.cibStaffcentral)));
-    t('inEdcIndemnityINR',     fmtIN(IN_BENEFITS.profIndemnity));
-    t('inEdcIndemnity',        fmt(inrToCurr(IN_BENEFITS.profIndemnity)));
-    t('inEdcComprehensiveINR', fmtIN(IN_BENEFITS.comprehensiveInsurance));
-    t('inEdcComprehensive',    fmt(inrToCurr(IN_BENEFITS.comprehensiveInsurance)));
-    t('inBfTechSubINR',        fmtIN(c.csCostsINR));
-    t('inBfTechSub',           fmt(inrToCurr(c.csCostsINR)));
+    // ── DETAILED BREAKDOWN ───────────────────────────────────────────────
 
-    // Grand total
+    // GROUP 1: Gross Salary — Take-Home
+    t('inEdcBasicPayINR',       fmtRangeIN(c.basicSalaryMonthly,    cTo.basicSalaryMonthly));
+    t('inEdcBasicPay',          fmtRange(inrToCurr(c.basicSalaryMonthly), inrToCurr(cTo.basicSalaryMonthly), currency));
+    t('inEdcHRAINR',            fmtIN(c.hraMonthly));
+    t('inEdcHRA',               fmt(inrToCurr(c.hraMonthly)));
+    t('inEdcVehicleINR',        fmtIN(c.vehicleMonthly));
+    t('inEdcVehicle',           fmt(inrToCurr(c.vehicleMonthly)));
+    t('inEdcTelephoneINR',      fmtIN(c.telephoneMonthly));
+    t('inEdcTelephone',         fmt(inrToCurr(c.telephoneMonthly)));
+    t('inEdcChildrenEdINR',     fmtIN(c.childrenEdMonthly));
+    t('inEdcChildrenEd',        fmt(inrToCurr(c.childrenEdMonthly)));
+    t('inEdcLTAINR',            fmtIN(c.ltaMonthly));
+    t('inEdcLTA',               fmt(inrToCurr(c.ltaMonthly)));
+    t('inEdcSodexoINR',         fmtIN(c.sodexoMonthly));
+    t('inEdcSodexo',            fmt(inrToCurr(c.sodexoMonthly)));
+    t('inEdcBooksINR',          fmtIN(c.booksMonthly));
+    t('inEdcBooks',             fmt(inrToCurr(c.booksMonthly)));
+    t('inEdcProjectINR',        fmtRangeIN(c.projectMonthly, cTo.projectMonthly));
+    t('inEdcProject',           fmtRange(inrToCurr(c.projectMonthly), inrToCurr(cTo.projectMonthly), currency));
+    // "Other allowances" subtotal (vehicle → project, excludes basic + HRA)
+    t('inBfOtherAllowSubINR',   fmtRangeIN(c.otherAllowancesMonthly, cTo.otherAllowancesMonthly));
+    t('inBfOtherAllowSub',      fmtRange(inrToCurr(c.otherAllowancesMonthly), inrToCurr(cTo.otherAllowancesMonthly), currency));
+    // Night diff + gross salary subtotal (re-uses monthlyBase which is CTC/12)
+    t('inEdcNightDiffINR',      fmtRangeIN(c.nightDiff, cTo.nightDiff));
+    t('inEdcNightDiff',         fmtRange(inrToCurr(c.nightDiff), inrToCurr(cTo.nightDiff), currency));
+    t('inBfBasicSubINR',        fmtRangeIN(grossFrom, grossTo));
+    t('inBfBasicSub',           fmtRange(inrToCurr(grossFrom), inrToCurr(grossTo), currency));
+
+    // GROUP 2: Employer Contribution — Employer Pays
+    t('inEdcPFINR',             fmtRangeIN(c.pfMonthly, cTo.pfMonthly));
+    t('inEdcPF',                fmtRange(inrToCurr(c.pfMonthly), inrToCurr(cTo.pfMonthly), currency));
+    t('inEdcESIINR',            fmtRangeIN(c.esiMonthly, cTo.esiMonthly));
+    t('inEdcESI',               fmtRange(inrToCurr(c.esiMonthly), inrToCurr(cTo.esiMonthly), currency));
+    t('inEdcGratuityINR',       fmtRangeIN(c.gratuityMonthly, cTo.gratuityMonthly));
+    t('inEdcGratuity',          fmtRange(inrToCurr(c.gratuityMonthly), inrToCurr(cTo.gratuityMonthly), currency));
+    t('inBfStatutorySubINR',    fmtRangeIN(c.statutoryINR, cTo.statutoryINR));
+    t('inBfStatutorySub',       fmtRange(inrToCurr(c.statutoryINR), inrToCurr(cTo.statutoryINR), currency));
+
+    // GROUP 3: CS Operational Cost — Cloudstaff Pays
+    // Govt mandated subtotal = redundancy only
+    t('inEdcRedundancyINR',        fmtRangeIN(c.redundancyINR, cTo.redundancyINR));
+    t('inEdcRedundancy',           fmtRange(inrToCurr(c.redundancyINR), inrToCurr(cTo.redundancyINR), currency));
+    t('inBfGovtMandatedSubINR',    fmtRangeIN(c.redundancyINR, cTo.redundancyINR));
+    t('inBfGovtMandatedSub',       fmtRange(inrToCurr(c.redundancyINR), inrToCurr(cTo.redundancyINR), currency));
+    // Medical subtotal = HMO + pharmacy (already combined in hmoMonthly)
+    t('inEdcHMOINR',            fmtIN(c.hmoMonthly - IN_BENEFITS.companyPharmacy));
+    t('inEdcHMO',               fmt(inrToCurr(c.hmoMonthly - IN_BENEFITS.companyPharmacy)));
+    t('inEdcPharmacyINR',       fmtIN(IN_BENEFITS.companyPharmacy));
+    t('inEdcPharmacy',          fmt(inrToCurr(IN_BENEFITS.companyPharmacy)));
+    t('inBfMedicalSubINR',      fmtIN(c.hmoMonthly));
+    t('inBfMedicalSub',         fmt(inrToCurr(c.hmoMonthly)));
+    // Uniform
+    t('inEdcUniformINR',        fmtIN(c.uniformINR));
+    t('inEdcUniform',           fmt(inrToCurr(c.uniformINR)));
+    // CPD Training Levy = 0
+    t('inEdcCPDINR',            fmtIN(0));
+    t('inEdcCPD',               fmt(0));
+    // Employee Retention Program subtotal = team building + xmas + social
+    t('inEdcTeamBuildingINR',   fmtIN(IN_BENEFITS.teamBuilding));
+    t('inEdcTeamBuilding',      fmt(inrToCurr(IN_BENEFITS.teamBuilding)));
+    t('inEdcXmasINR',           fmtIN(IN_BENEFITS.xmasParty));
+    t('inEdcXmas',              fmt(inrToCurr(IN_BENEFITS.xmasParty)));
+    t('inEdcSocialClubINR',     fmtIN(IN_BENEFITS.socialClub));
+    t('inEdcSocialClub',        fmt(inrToCurr(IN_BENEFITS.socialClub)));
+    t('inBfERPSubINR',          fmtIN(c.csBenefitsINR));
+    t('inBfERPSub',             fmt(inrToCurr(c.csBenefitsINR)));
+    // Flight Deck and SaaS subtotal = csCostsINR
+    t('inEdcMicrosoftINR',      fmtIN(c.microsoftINR));
+    t('inEdcMicrosoft',         fmt(inrToCurr(c.microsoftINR)));
+    t('inEdcCIBINR',            fmtIN(IN_BENEFITS.cibStaffcentral));
+    t('inEdcCIB',               fmt(inrToCurr(IN_BENEFITS.cibStaffcentral)));
+    t('inEdcIndemnityINR',      fmtIN(IN_BENEFITS.profIndemnity));
+    t('inEdcIndemnity',         fmt(inrToCurr(IN_BENEFITS.profIndemnity)));
+    t('inEdcComprehensiveINR',  fmtIN(IN_BENEFITS.comprehensiveInsurance));
+    t('inEdcComprehensive',     fmt(inrToCurr(IN_BENEFITS.comprehensiveInsurance)));
+    t('inBfFlightDeckSubINR',   fmtIN(c.csCostsINR));
+    t('inBfFlightDeckSub',      fmt(inrToCurr(c.csCostsINR)));
+    // CS Operational Total
+    t('inBfCSOpTotalINR',       fmtRangeIN(c.totalBenefitsINR, cTo.totalBenefitsINR));
+    t('inBfCSOpTotal',          fmtRange(inrToCurr(c.totalBenefitsINR), inrToCurr(cTo.totalBenefitsINR), currency));
+
+    // GRAND TOTAL
     t('inBfTotalINR', fmtRangeIN(c.edcINR, cTo.edcINR));
     t('inBfTotal',    fmtRange(c.edcCurr, cTo.edcCurr, currency));
 
