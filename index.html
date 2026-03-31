@@ -1491,15 +1491,37 @@
                 </div>
                 <div class="calc-card-body">
                     <div class="edc-formula-row">
-                        <div class="edc-tile"><div class="edc-tile-label">Monthly Basic Salary</div><div class="edc-tile-vals"><span class="edc-main" id="inEdcBasicSalary">--</span><span class="edc-php" id="inEdcBasicSalaryINR">--</span></div><div class="edc-tile-desc">CTC ÷ 12 + Night Differential (10%)</div></div>
+                        <!-- Tile 1: Gross Salary -->
+                        <div class="edc-tile">
+                            <div class="edc-tile-label">Gross Salary</div>
+                            <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.04em;">Take-Home</div>
+                            <div class="edc-tile-vals"><span class="edc-main" id="inEdcBasicSalary">--</span><span class="edc-php" id="inEdcBasicSalaryINR">--</span></div>
+                            <div class="edc-tile-desc">CTC ÷ 12 + Night Differential</div>
+                        </div>
                         <div class="edc-op">+</div>
-                        <div class="edc-tile"><div class="edc-tile-label">Monthly Statutory Benefits</div><div class="edc-tile-vals"><span class="edc-main" id="inEdcStatutory">--</span><span class="edc-php" id="inEdcStatutoryINR">--</span></div><div class="edc-tile-desc">Provident Fund (12%), ESI (3.25%), Gratuity (4.165%)</div></div>
+                        <!-- Tile 2: Employer Contribution -->
+                        <div class="edc-tile">
+                            <div class="edc-tile-label">Employer Contribution</div>
+                            <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.04em;">Employer Pays</div>
+                            <div class="edc-tile-vals"><span class="edc-main" id="inEdcStatutory">--</span><span class="edc-php" id="inEdcStatutoryINR">--</span></div>
+                            <div class="edc-tile-desc">PF (12%), ESI (3.25%), Gratuity (4.165%)</div>
+                        </div>
                         <div class="edc-op">+</div>
-                        <div class="edc-tile"><div class="edc-tile-label">Monthly CS Benefits</div><div class="edc-tile-vals"><span class="edc-main" id="inEdcCSBenefits">--</span><span class="edc-php" id="inEdcCSBenefitsINR">--</span></div><div class="edc-tile-desc">Redundancy Insurance, HMO, Uniform/IDs, Team Building, XMAS Party, Social Club</div></div>
-                        <div class="edc-op">+</div>
-                        <div class="edc-tile"><div class="edc-tile-label">Monthly CS Tech Costs</div><div class="edc-tile-vals"><span class="edc-main" id="inEdcCSTech">--</span><span class="edc-php" id="inEdcCSTechINR">--</span></div><div class="edc-tile-desc">Microsoft (AUD 12.68), CIB/Staffcentral, Prof. Indemnity, Comprehensive Insurance</div></div>
+                        <!-- Tile 3: CS Operational Cost -->
+                        <div class="edc-tile">
+                            <div class="edc-tile-label">CS Operational Cost</div>
+                            <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.04em;">Cloudstaff Pays</div>
+                            <div class="edc-tile-vals"><span class="edc-main" id="inEdcCSBenefits">--</span><span class="edc-php" id="inEdcCSBenefitsINR">--</span></div>
+                            <div class="edc-tile-desc">Redundancy, HMO, Uniform, ERP, Flight Deck &amp; SaaS</div>
+                        </div>
                         <div class="edc-op edc-eq">=</div>
-                        <div class="edc-tile edc-total-tile"><div class="edc-tile-label">Monthly EDC Grand Total</div><div class="edc-tile-vals"><span class="edc-main" id="inEdcTotal">--</span><span class="edc-php" id="inEdcTotalINR">--</span></div><div class="edc-tile-desc">Basic Salary + Statutory + CS Benefits + CS Tech</div></div>
+                        <!-- Tile 4: Total EDC -->
+                        <div class="edc-tile edc-total-tile">
+                            <div class="edc-tile-label">Total Employee Direct Cost</div>
+                            <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.04em;">Monthly EDC</div>
+                            <div class="edc-tile-vals"><span class="edc-main" id="inEdcTotal">--</span><span class="edc-php" id="inEdcTotalINR">--</span></div>
+                            <div class="edc-tile-desc">Gross Salary + Employer Contribution + CS Operational</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1517,34 +1539,72 @@
                     </div>
                     <div class="breakdown-scroll">
                         <table class="breakdown-table">
-                            <thead><tr><th>Component</th><th>INR (₹)</th><th id="inBenefitsCurrencyHeader">AUD</th></tr></thead>
+                            <thead>
+                                <tr>
+                                    <th>Component</th>
+                                    <th>Basis</th>
+                                    <th>INR (₹)</th>
+                                    <th id="inBenefitsCurrencyHeader">USD</th>
+                                </tr>
+                            </thead>
                             <tbody>
-                                <tr class="bf-section"><td colspan="3">Monthly Basic Salary</td></tr>
-                                <tr><td>Monthly Base (CTC ÷ 12)</td><td class="bf-php" id="inEdcBasicSalaryINR2">--</td><td id="inEdcBasicSalary2">--</td></tr>
-                                <tr><td>Night Differential (10%)</td><td class="bf-php" id="inEdcNightDiffINR">--</td><td id="inEdcNightDiff">--</td></tr>
-                                <tr class="bf-subtotal"><td>Subtotal: Monthly Basic Salary</td><td class="bf-php" id="inBfBasicSubINR">--</td><td id="inBfBasicSub">--</td></tr>
 
-                                <tr class="bf-section"><td colspan="3">Monthly Statutory Benefits</td></tr>
-                                <tr><td>Provident Fund — 12% of Basic</td><td class="bf-php" id="inEdcPFINR">--</td><td id="inEdcPF">--</td></tr>
-                                <tr><td>ESI — 3.25% (if monthly basic ≤ ₹21,000)</td><td class="bf-php" id="inEdcESIINR">--</td><td id="inEdcESI">--</td></tr>
-                                <tr><td>Gratuity — 4.165% of CTC</td><td class="bf-php" id="inEdcGratuityINR">--</td><td id="inEdcGratuity">--</td></tr>
-                                <tr class="bf-subtotal"><td>Subtotal: Monthly Statutory Benefits</td><td class="bf-php" id="inBfStatutorySubINR">--</td><td id="inBfStatutorySub">--</td></tr>
+                                <!-- ═══ GROUP 1: GROSS SALARY — TAKE-HOME ═══ -->
+                                <tr class="bf-section"><td colspan="4" style="background:#1e3a5f;color:#93c5fd;">🟦 Gross Salary — Take-Home (Pay2 Structure)</td></tr>
+                                <tr><td>Basic Salary</td><td style="color:var(--text-muted);font-size:0.8rem;">50% of Fixed Pay</td><td class="bf-php" id="inEdcBasicPayINR">--</td><td id="inEdcBasicPay">--</td></tr>
+                                <tr><td>House Rent Allowance</td><td style="color:var(--text-muted);font-size:0.8rem;">40% of Basic Salary</td><td class="bf-php" id="inEdcHRAINR">--</td><td id="inEdcHRA">--</td></tr>
+                                <tr><td>Vehicle Reimbursement</td><td style="color:var(--text-muted);font-size:0.8rem;">Fixed (below 1600cc)</td><td class="bf-php" id="inEdcVehicleINR">--</td><td id="inEdcVehicle">--</td></tr>
+                                <tr><td>Telephone / Internet Reimbursement</td><td style="color:var(--text-muted);font-size:0.8rem;">Fixed (Pay2)</td><td class="bf-php" id="inEdcTelephoneINR">--</td><td id="inEdcTelephone">--</td></tr>
+                                <tr><td>Children Education Allowance</td><td style="color:var(--text-muted);font-size:0.8rem;">Fixed Amount</td><td class="bf-php" id="inEdcChildrenEdINR">--</td><td id="inEdcChildrenEd">--</td></tr>
+                                <tr><td>Leave Travel Allowance</td><td style="color:var(--text-muted);font-size:0.8rem;">1 month Basic / 12</td><td class="bf-php" id="inEdcLTAINR">--</td><td id="inEdcLTA">--</td></tr>
+                                <tr><td>Sodexo / Food Coupons</td><td style="color:var(--text-muted);font-size:0.8rem;">Fixed Amount</td><td class="bf-php" id="inEdcSodexoINR">--</td><td id="inEdcSodexo">--</td></tr>
+                                <tr><td>Books &amp; Periodicals</td><td style="color:var(--text-muted);font-size:0.8rem;">Fixed (Pay2)</td><td class="bf-php" id="inEdcBooksINR">--</td><td id="inEdcBooks">--</td></tr>
+                                <tr><td>Project Allowance</td><td style="color:var(--text-muted);font-size:0.8rem;">Remainder of Fixed Pay</td><td class="bf-php" id="inEdcProjectINR">--</td><td id="inEdcProject">--</td></tr>
+                                <tr class="bf-subtotal"><td colspan="2">Employee is paid these other allowances</td><td class="bf-php" id="inBfOtherAllowSubINR">--</td><td id="inBfOtherAllowSub">--</td></tr>
+                                <tr style="border-top:1px dashed var(--border);"><td>Night Differential</td><td style="color:var(--text-muted);font-size:0.8rem;">10% × (hrs × 22 days)</td><td class="bf-php" id="inEdcNightDiffINR">--</td><td id="inEdcNightDiff">--</td></tr>
+                                <tr class="bf-subtotal"><td colspan="2">Gross Salary Subtotal (Monthly)</td><td class="bf-php" id="inBfBasicSubINR">--</td><td id="inBfBasicSub">--</td></tr>
 
-                                <tr class="bf-section"><td colspan="3">Monthly CS Benefits</td></tr>
-                                <tr><td>Redundancy Insurance — 8.5% of monthly base</td><td class="bf-php" id="inEdcRedundancyINR">--</td><td id="inEdcRedundancy">--</td></tr>
-                                <tr><td>HMO + Company Pharmacy</td><td class="bf-php" id="inEdcHMOINR">--</td><td id="inEdcHMO">--</td></tr>
-                                <tr><td>Uniforms &amp; Work IDs</td><td class="bf-php" id="inEdcUniformINR">--</td><td id="inEdcUniform">--</td></tr>
-                                <tr><td>Team Building, XMAS Party, Social Club</td><td class="bf-php" id="inEdcCSBenefitsINR2">--</td><td id="inEdcCSBenefits2">--</td></tr>
-                                <tr class="bf-subtotal"><td>Subtotal: Monthly CS Benefits</td><td class="bf-php" id="inBfBenefitsSubINR">--</td><td id="inBfBenefitsSub">--</td></tr>
+                                <!-- ═══ GROUP 2: EMPLOYER CONTRIBUTION — EMPLOYER PAYS ═══ -->
+                                <tr class="bf-section"><td colspan="4" style="background:#1a3d2e;color:#6ee7b7;">🟩 Employer Contribution — Employer Pays</td></tr>
+                                <tr><td>Provident Fund</td><td style="color:var(--text-muted);font-size:0.8rem;">12% of Basic Salary</td><td class="bf-php" id="inEdcPFINR">--</td><td id="inEdcPF">--</td></tr>
+                                <tr><td>ESIC</td><td style="color:var(--text-muted);font-size:0.8rem;">3.25% of Gross (if basic ≤ ₹21,000)</td><td class="bf-php" id="inEdcESIINR">--</td><td id="inEdcESI">--</td></tr>
+                                <tr><td>Gratuity Fund</td><td style="color:var(--text-muted);font-size:0.8rem;">4.165% of Base Salary</td><td class="bf-php" id="inEdcGratuityINR">--</td><td id="inEdcGratuity">--</td></tr>
+                                <tr class="bf-subtotal"><td colspan="2">Total Employer Contribution</td><td class="bf-php" id="inBfStatutorySubINR">--</td><td id="inBfStatutorySub">--</td></tr>
 
-                                <tr class="bf-section"><td colspan="3">Monthly CS Tech Costs</td></tr>
-                                <tr><td>Technology Charge (Microsoft) — AUD $12.68</td><td class="bf-php" id="inEdcMicrosoftINR">--</td><td id="inEdcMicrosoft">--</td></tr>
-                                <tr><td>CIB/Staffcentral/Timekeeping</td><td class="bf-php" id="inEdcCIBINR">--</td><td id="inEdcCIB">--</td></tr>
-                                <tr><td>Professional Indemnity Insurance</td><td class="bf-php" id="inEdcIndemnityINR">--</td><td id="inEdcIndemnity">--</td></tr>
-                                <tr><td>Comprehensive Insurance</td><td class="bf-php" id="inEdcComprehensiveINR">--</td><td id="inEdcComprehensive">--</td></tr>
-                                <tr class="bf-subtotal"><td>Subtotal: Monthly CS Tech Costs</td><td class="bf-php" id="inBfTechSubINR">--</td><td id="inBfTechSub">--</td></tr>
+                                <!-- ═══ GROUP 3: CS OPERATIONAL COST — CLOUDSTAFF PAYS ═══ -->
+                                <tr class="bf-section"><td colspan="4" style="background:#3d1f00;color:#fdba74;">🟧 CS Operational Cost — Cloudstaff Pays</td></tr>
 
-                                <tr class="bf-total"><td>Grand Total: Monthly Employee Direct Costs</td><td class="bf-php" id="inBfTotalINR">--</td><td id="inBfTotal">--</td></tr>
+                                <!-- Govt Mandated subtotal -->
+                                <tr><td>Redundancy Insurance</td><td style="color:var(--text-muted);font-size:0.8rem;">8.5% of monthly base</td><td class="bf-php" id="inEdcRedundancyINR">--</td><td id="inEdcRedundancy">--</td></tr>
+                                <tr class="bf-subtotal"><td colspan="2">Government Mandated Benefits</td><td class="bf-php" id="inBfGovtMandatedSubINR">--</td><td id="inBfGovtMandatedSub">--</td></tr>
+
+                                <!-- Medical subtotal -->
+                                <tr><td>HMO Medical Insurance</td><td style="color:var(--text-muted);font-size:0.8rem;">Care Health Insurance — per life</td><td class="bf-php" id="inEdcHMOINR">--</td><td id="inEdcHMO">--</td></tr>
+                                <tr><td>Company Pharmacy</td><td style="color:var(--text-muted);font-size:0.8rem;">Fixed</td><td class="bf-php" id="inEdcPharmacyINR">--</td><td id="inEdcPharmacy">--</td></tr>
+                                <tr class="bf-subtotal"><td colspan="2">Medical Insurance &amp; Pharmacy</td><td class="bf-php" id="inBfMedicalSubINR">--</td><td id="inBfMedicalSub">--</td></tr>
+
+                                <!-- Standalone lines -->
+                                <tr><td>Uniform and IDs</td><td style="color:var(--text-muted);font-size:0.8rem;">Fixed</td><td class="bf-php" id="inEdcUniformINR">--</td><td id="inEdcUniform">--</td></tr>
+                                <tr><td>CPD Training Levy</td><td style="color:var(--text-muted);font-size:0.8rem;">1 Nov 2023</td><td class="bf-php" id="inEdcCPDINR">--</td><td id="inEdcCPD">--</td></tr>
+
+                                <!-- ERP subtotal -->
+                                <tr><td>Annual Team Building</td><td style="color:var(--text-muted);font-size:0.8rem;">Annual ÷ 12</td><td class="bf-php" id="inEdcTeamBuildingINR">--</td><td id="inEdcTeamBuilding">--</td></tr>
+                                <tr><td>Annual XMAS Party</td><td style="color:var(--text-muted);font-size:0.8rem;">Annual ÷ 12</td><td class="bf-php" id="inEdcXmasINR">--</td><td id="inEdcXmas">--</td></tr>
+                                <tr><td>Social Club</td><td style="color:var(--text-muted);font-size:0.8rem;">Monthly</td><td class="bf-php" id="inEdcSocialClubINR">--</td><td id="inEdcSocialClub">--</td></tr>
+                                <tr class="bf-subtotal"><td colspan="2">Employee Retention Program</td><td class="bf-php" id="inBfERPSubINR">--</td><td id="inBfERPSub">--</td></tr>
+
+                                <!-- Flight Deck subtotal -->
+                                <tr><td>Microsoft Technology Charge</td><td style="color:var(--text-muted);font-size:0.8rem;">AUD $12.68 → INR → USD</td><td class="bf-php" id="inEdcMicrosoftINR">--</td><td id="inEdcMicrosoft">--</td></tr>
+                                <tr><td>CIB / Staffcentral</td><td style="color:var(--text-muted);font-size:0.8rem;">Fixed INR</td><td class="bf-php" id="inEdcCIBINR">--</td><td id="inEdcCIB">--</td></tr>
+                                <tr><td>Professional Indemnity Insurance</td><td style="color:var(--text-muted);font-size:0.8rem;">Fixed INR</td><td class="bf-php" id="inEdcIndemnityINR">--</td><td id="inEdcIndemnity">--</td></tr>
+                                <tr><td>Comprehensive Insurance</td><td style="color:var(--text-muted);font-size:0.8rem;">Fixed INR</td><td class="bf-php" id="inEdcComprehensiveINR">--</td><td id="inEdcComprehensive">--</td></tr>
+                                <tr class="bf-subtotal"><td colspan="2">Flight Deck and SaaS</td><td class="bf-php" id="inBfFlightDeckSubINR">--</td><td id="inBfFlightDeckSub">--</td></tr>
+
+                                <!-- CS Op Total -->
+                                <tr class="bf-subtotal" style="font-weight:700;"><td colspan="2">CS Operational Cost Total</td><td class="bf-php" id="inBfCSOpTotalINR">--</td><td id="inBfCSOpTotal">--</td></tr>
+
+                                <!-- ═══ GRAND TOTAL ═══ -->
+                                <tr class="bf-total"><td colspan="2">Total Employee Direct Costs</td><td class="bf-php" id="inBfTotalINR">--</td><td id="inBfTotal">--</td></tr>
                             </tbody>
                         </table>
                     </div>
