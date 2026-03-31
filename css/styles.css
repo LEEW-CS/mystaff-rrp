@@ -334,17 +334,23 @@ body { font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #
 .breakdown-table th { background: var(--primary); color: white; padding: 0.5rem 0.75rem; text-align: left; font-size: 0.75rem; white-space: nowrap; }
 .breakdown-table td { padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--border); }
 .breakdown-table tr:hover td { background: var(--surface); }
+.breakdown-table tr.bf-total td,
+.breakdown-table tr.bf-total:hover td { background: linear-gradient(135deg, #1e40af, #3b82f6) !important; color: white !important; }
 .bf-section td { background: #e0f2fe; color: #075985; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; padding: 0.35rem 0.75rem; }
 .bf-subtotal td { background: #f1f5f9; font-weight: 700; font-size: 0.8rem; }
-.bf-total td { background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; font-weight: 700; font-size: 0.875rem; padding: 0.6rem 0.75rem; }
-.bf-total:hover td { background: linear-gradient(135deg, #1e3a8a, #2563eb) !important; color: white !important; }
+.bf-total td { font-weight: 700; font-size: 0.875rem; padding: 0.6rem 0.75rem; }
 .bf-php { font-family: 'Space Mono', monospace; text-align: right; color: #16a34a; font-size: 0.78rem; }
 .breakdown-table td:nth-child(2), .breakdown-table td:nth-child(3) { text-align: right; font-family: 'Space Mono', monospace; white-space: nowrap; }
 /* India 4-column breakdown table — col1=Component, col2=Basis (text), col3=INR, col4=Currency */
-.breakdown-table.breakdown-4col td:nth-child(1) { width: 38%; }
-.breakdown-table.breakdown-4col td:nth-child(2) { width: 28%; text-align: left !important; font-family: inherit !important; color: var(--text-muted); font-size: 0.8rem; white-space: normal; }
-.breakdown-table.breakdown-4col td:nth-child(3) { width: 17%; text-align: right !important; font-family: 'Space Mono', monospace !important; white-space: nowrap; color: #16a34a; font-size: 0.78rem; }
-.breakdown-table.breakdown-4col td:nth-child(4) { width: 17%; text-align: right !important; font-family: 'Space Mono', monospace !important; white-space: nowrap; }
+.breakdown-table.breakdown-4col { table-layout: fixed; }
+.breakdown-table.breakdown-4col col.col-component { width: 36%; }
+.breakdown-table.breakdown-4col col.col-basis     { width: 30%; }
+.breakdown-table.breakdown-4col col.col-inr       { width: 17%; }
+.breakdown-table.breakdown-4col col.col-curr      { width: 17%; }
+.breakdown-table.breakdown-4col td:nth-child(1) { overflow: hidden; text-overflow: ellipsis; }
+.breakdown-table.breakdown-4col td:nth-child(2) { text-align: left !important; font-family: inherit !important; font-size: 0.8rem !important; color: var(--text-muted) !important; white-space: normal !important; overflow: hidden; }
+.breakdown-table.breakdown-4col td:nth-child(3) { text-align: right !important; font-family: 'Space Mono', monospace !important; white-space: nowrap !important; color: #16a34a; font-size: 0.78rem; }
+.breakdown-table.breakdown-4col td:nth-child(4) { text-align: right !important; font-family: 'Space Mono', monospace !important; white-space: nowrap !important; }
 .breakdown-table.breakdown-4col th:nth-child(3),
 .breakdown-table.breakdown-4col th:nth-child(4) { text-align: right; }
 .alert-box { display: flex; align-items: flex-start; gap: 0.5rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8rem; color: #991b1b; margin-bottom: 1rem; }
