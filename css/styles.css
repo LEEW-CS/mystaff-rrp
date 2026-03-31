@@ -340,6 +340,10 @@ body { font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #
 .bf-total:hover td { background: linear-gradient(135deg, #1e3a8a, #2563eb) !important; color: white !important; }
 .bf-php { font-family: 'Space Mono', monospace; text-align: right; color: #16a34a; font-size: 0.78rem; }
 .breakdown-table td:nth-child(2), .breakdown-table td:nth-child(3) { text-align: right; font-family: 'Space Mono', monospace; white-space: nowrap; }
+/* India 4-column breakdown table — col2=Basis (text), col3=INR, col4=Currency */
+.breakdown-table.breakdown-4col td:nth-child(2) { text-align: left; font-family: inherit; color: var(--text-muted); font-size: 0.8rem; white-space: normal; }
+.breakdown-table.breakdown-4col td:nth-child(3),
+.breakdown-table.breakdown-4col td:nth-child(4) { text-align: right; font-family: 'Space Mono', monospace; white-space: nowrap; }
 .alert-box { display: flex; align-items: flex-start; gap: 0.5rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8rem; color: #991b1b; margin-bottom: 1rem; }
 .alert-box svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem; }
 
